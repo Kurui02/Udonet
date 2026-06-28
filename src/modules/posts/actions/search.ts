@@ -17,7 +17,7 @@ export async function BuscarPublicaciones(termino:string, comunidad?:string, tag
             const coincideTermino =
                 post.titulo.toLowerCase().includes(busqueda)||
                 post.contenido.toLowerCase().includes(busqueda)||
-                post.tags.some(tag => tag.toLowerCase().includes(busqueda));
+                post.tags.some(tag => tag.toLowerCase().includes(busqueda)) || (post.comunidad && post.comunidad.toLowerCase().includes(busqueda));
             
             const coincideComunidad = comunidad ? post.comunidad === comunidad:true;
 

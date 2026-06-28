@@ -69,6 +69,7 @@ export default function Buscador(){
                                     {post.contenido}
                                 </p>
                                 <div style={{ fontSize: '12px', color: '#888' }}>
+                                    <strong>Comunidad:</strong> {post.comunidad || 'General'} | {''}
                                     <strong>Autor:</strong> {post.autor?.nombreUsuario} | {' '}
                                     <strong>Tags:</strong> {post.tags.join(', ')} | {' '}
                                     <strong>Votos:</strong> {post.votos}
