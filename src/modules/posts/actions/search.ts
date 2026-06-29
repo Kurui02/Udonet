@@ -3,7 +3,7 @@
 import { mockPublicaciones } from '@/modules/posts/services/datos-falsos'; 
 
 // realiza la busqueda como parametro oblicatorio cualquier termino, la comunidad y los tags son metodos opcionales, la busqueda funciona solo con cualquier termino
-export async function BuscarPublicaciones(termino:string, comunidad?:string, tags?: string[]) {
+export async function BuscarPublicaciones(termino:string, comunidad?:string, tags?: string[], filtro: string = 'recientes') {
     try {
         if (!termino || termino.trim() === '') {
             return [];
@@ -26,7 +26,15 @@ export async function BuscarPublicaciones(termino:string, comunidad?:string, tag
             return coincideTermino && coincideComunidad && coincideTags;
         });
 
-        resultdos.sort((a,b) => b.fechaCreacion.getTime() - a.fechaCreacion.getTime());
+        resultdos.sort((a, b) => {
+            if (filtro === 'votados') {
+                return (b.votos || 0) - (a.votos || 0);
+            } else if (filtro === 'respuestas') {
+                return (b.repuestasCount || 0) - (a.repuestasCount || 0);
+            } else {
+                return b.fechaCreacion.getTime() - a.fechaCreacion.getTime();
+            }
+        });
         return resultdos.slice(0,10);
     } catch (error) {
         console.error("Error al realizar la busqueda:", error);

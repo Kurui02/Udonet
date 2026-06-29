@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react'; // nos va a permitir usar los estados para tener el control de la interfaz y su logica
+import { use, useState } from 'react'; // nos va a permitir usar los estados para tener el control de la interfaz y su logica
 import { BuscarPublicaciones } from '@/modules/posts/actions/search';
 import { PublicacionesMock } from '@/modules/posts/services/datos-falsos'; 
 
@@ -9,6 +9,7 @@ export default function Buscador(){
     const [resultados, setResultados] = useState<PublicacionesMock[]>([]);
     const [cargando, setCargando] = useState(false);
     const [busqueda, setBusqueda] = useState(false);
+    const [filtro, setFiltro] = useState('recientes');
 
     const manejarBusqueda = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -19,7 +20,7 @@ export default function Buscador(){
         setBusqueda(true);
 
         try {
-            const data = await BuscarPublicaciones(termino);
+            const data = await BuscarPublicaciones(termino, undefined, undefined,filtro);
             setResultados(data);
         } catch (error) {
             console.error("Error en la búsqueda:", error);
@@ -41,6 +42,17 @@ export default function Buscador(){
                 onChange={(e) => setTermino(e.target.value)}
                 style={{padding:'8px', width:'300px', marginRight: '10px'}}
                 />
+                
+                <select 
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    style={{padding:'8px'}}
+                >
+                    <option value="recientes">Más recientes</option>
+                    <option value="votados">Más votados</option>
+                    <option value="respuestas">Más respuestas</option>
+                </select>
+
                 <button type="submit" disabled={cargando} style={{padding:'8px 16px'}}>
                     {cargando ? 'Buscando...' : 'Buscar'}
                 </button>
@@ -72,7 +84,8 @@ export default function Buscador(){
                                     <strong>Comunidad:</strong> {post.comunidad || 'General'} | {''}
                                     <strong>Autor:</strong> {post.autor?.nombreUsuario} | {' '}
                                     <strong>Tags:</strong> {post.tags.join(', ')} | {' '}
-                                    <strong>Votos:</strong> {post.votos}
+                                    <strong>Votos:</strong> {post.votos} | {''}
+                                    <strong>Respuestas</strong> {post.repuestasCount}
                                 </div>
                             </li>
                         ))}
