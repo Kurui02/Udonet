@@ -1,10 +1,14 @@
 'use client';
 
-import { use, useState } from 'react'; // nos va a permitir usar los estados para tener el control de la interfaz y su logica
+import { useState } from 'react'; // nos va a permitir usar los estados para tener el control de la interfaz y su logica
 import { BuscarPublicaciones } from '@/modules/posts/actions/search';
 import { PublicacionesMock } from '@/modules/posts/services/datos-falsos'; 
 
-export default function Buscador(){
+interface BuscadorProp {
+    onSeleccionarPost: (id: string) => void;
+}
+
+export default function Buscador({onSeleccionarPost}: BuscadorProp){
     const [termino, setTermino] = useState('');
     const [resultados, setResultados] = useState<PublicacionesMock[]>([]);
     const [cargando, setCargando] = useState(false);
@@ -40,13 +44,13 @@ export default function Buscador(){
                 placeholder="Busca por titulo, comunidad o tag"
                 value={termino}
                 onChange={(e) => setTermino(e.target.value)}
-                style={{padding:'8px', width:'300px', marginRight: '10px'}}
+                style={{padding:'8px', width:'300px', marginRight: '10px',borderRadius: '4px', border: '1px solid #9b9b9b'}}
                 />
                 
                 <select 
                     value={filtro}
                     onChange={(e) => setFiltro(e.target.value)}
-                    style={{padding:'8px'}}
+                    style={{padding:'8px', borderRadius: '4px', border: '1px solid #a7a7a7', color: '#b4b4b4'}}
                 >
                     <option value="recientes">Más recientes</option>
                     <option value="votados">Más votados</option>
@@ -74,18 +78,27 @@ export default function Buscador(){
                         {resultados.map((post) => (
                             <li
                                 key={post.id}
-                                style={{border: '1px solid #ccc', padding: '15px', marginBottom: '10px', borderRadius: '5px'}}                            
+                                style={{border: '1px solid #d1cfcf', padding: '15px', marginBottom: '10px', borderRadius: '5px'}}                            
                             >
-                                <h4 style={{margin:'0 0 10px 0'}}>{post.titulo}</h4>
-                                <p style={{margin:'0 0 10px 0', fontSize: '14px', color:'#555'}}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h4 style={{margin:'0 0 10px 0', fontSize: '18px'}}>{post.titulo}</h4>
+                                    <button 
+                                        onClick={() => onSeleccionarPost(post.id)}
+                                        style={{padding: '4px 10px', backgroundColor: '#0070f3', color: '#white', border: 'none', borderRadius: '4px', cursor: 'pointer'}}
+                                    >
+                                        Ver Hilo →
+                                    </button>
+                                </div>
+                                <p style={{margin:'0 0 10px 0', fontSize: '14px', color:'#eeeded'}}>
                                     {post.contenido}
                                 </p>
-                                <div style={{ fontSize: '12px', color: '#888' }}>
-                                    <strong>Comunidad:</strong> {post.comunidad || 'General'} | {''}
+                                <div style={{ fontSize: '12px', color: '#cfcfcf' }}>
+                                    <strong>Comunidad:</strong> {post.comunidad || 'General'} | {' '}
                                     <strong>Autor:</strong> {post.autor?.nombreUsuario} | {' '}
                                     <strong>Tags:</strong> {post.tags.join(', ')} | {' '}
-                                    <strong>Votos:</strong> {post.votos} | {''}
-                                    <strong>Respuestas</strong> {post.repuestasCount}
+                                    <strong>Votos:</strong> {post.votos} | {' '}
+                                    <strong>Respuestas:</strong> {post.repuestasCount} | {' '}
+                                    <strong>Estado:</strong> {post.estado}
                                 </div>
                             </li>
                         ))}
