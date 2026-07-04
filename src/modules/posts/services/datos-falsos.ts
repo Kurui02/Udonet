@@ -1,28 +1,38 @@
+// 1. Importamos el archivo JSON (Asegúrate de que la ruta empiece por ./ )
+import publicacionesJson from './publicacionesExtras.json';
+
 export interface PublicacionesMock {
-    id:string;
-    titulo:string;
-    contenido:string;
-    comunidad:string;
-    tags:string[];
-    autor: { nombreUsuario: string;};
+    id: string;
+    titulo: string;
+    contenido: string;
+    comunidad: string;
+    tags: string[];
+    autor: { nombreUsuario: string; };
     fechaCreacion: Date;
     votos: number;
     repuestasCount: number;
-    estado: 'Abierto' | 'Resuelto' | 'Fijado'
-    hiloRespuestas: RespuestaMock[];
-} //esto es la simulacion de la infomacion que conforma los post en la base de datos
-    // no vi como ellos lo habran puesto, pueden ver y lo cambian o añaden lo que crean que falte
-    // al final son datos falsos por los momentos pero es como deberia funcionar con la base de datos
-
+    estado: 'Abierto' | 'Resuelto' | 'Fijado';
+    hiloRespuestas: any[]; // O puedes cambiarlo a tu interfaz 'RespuestaMock[]'
+    links?: string[];      // Campo opcional agregado
+    linkMetadata?: {       // Campo opcional para soportar los datos del scraper de miniatura
+        title: string;
+        description: string;
+        image: {
+            url: string;
+        };
+    } | null;
+}
 export interface RespuestaMock {
     id: string;
-    autor: { nombreUsuario: string;};
-    contenido:string;
+    autor: { nombreUsuario: string; };
+    contenido: string;
     fechaCreacion: Date;
     votos: number;
-    respuestasAnidadas? : RespuestaMock[];
+    respuestasAnidadas?: RespuestaMock[];
 }
-export const mockPublicaciones: PublicacionesMock[] = [
+
+// Tus publicaciones hardcodeadas originales
+const publicacionesEstaticas: PublicacionesMock[] = [
   {
     id: 'post_001',
     titulo: '¿Dónde está básico?',
@@ -35,31 +45,31 @@ export const mockPublicaciones: PublicacionesMock[] = [
     repuestasCount: 3,
     estado : 'Resuelto',
     hiloRespuestas: [
-      {
-                id: 'resp_1',
-                autor: { nombreUsuario: 'Joyce Valerio' },
-                contenido: '¡Hola! El edificio de básico está justo detrás de la biblioteca central. No tiene pérdida.',
-                fechaCreacion: new Date('2026-06-20T10:15:00Z'),
-                votos: 12,
-                respuestasAnidadas: [
-                    {
-                        id: 'resp_1_1',
-                        autor: { nombreUsuario: 'Leonel' },
-                        contenido: '¡Muchas gracias! Ya lo encontré. Me salvaste.',
-                        fechaCreacion: new Date('2026-06-20T10:20:00Z'),
-                        votos: 2,
-                    }
-                ]
-            },
-            {
-                id: 'resp_2',
-                autor: { nombreUsuario: 'Nepthali' },
-                contenido: 'Sigue a la multitud de nuevo ingreso, todos van para allá jaja.',
-                fechaCreacion: new Date('2026-06-20T10:18:00Z'),
-                votos: 5,
-            }
+        {
+            id: 'resp_1',
+            autor: { nombreUsuario: 'Joyce Valerio' },
+            contenido: '¡Hola! El edificio de básico está justo detrás de la biblioteca central. No tiene pérdida.',
+            fechaCreacion: new Date('2026-06-20T10:15:00Z'),
+            votos: 12,
+            respuestasAnidadas: [
+                {
+                    id: 'resp_1_1',
+                    autor: { nombreUsuario: 'Leonel' },
+                    contenido: '¡Muchas gracias! Ya lo encontré. Me salvaste.',
+                    fechaCreacion: new Date('2026-06-20T10:20:00Z'),
+                    votos: 2,
+                }
+            ]
+        },
+        {
+            id: 'resp_2',
+            autor: { nombreUsuario: 'Nepthali' },
+            contenido: 'Sigue a la multitud de nuevo ingreso, todos van para allá jaja.',
+            fechaCreacion: new Date('2026-06-20T10:18:00Z'),
+            votos: 5,
+        }
     ]
-  }, // utilice lo de los mockups para hacer la prueba
+  },
   {
     id: 'post_002',
     titulo: 'Odio Sistemas',
@@ -86,12 +96,12 @@ export const mockPublicaciones: PublicacionesMock[] = [
     estado: 'Abierto',
     hiloRespuestas:[
       {
-                id: 'resp_3',
-                autor: { nombreUsuario: 'Dano' },
-                contenido: 'Deben Aplicar la teoria para entender los transistores BJT.',
-                fechaCreacion: new Date('2026-06-22T09:00:00Z'),
-                votos: 30,
-            }
+        id: 'resp_3',
+        autor: { nombreUsuario: 'Dano' },
+        contenido: 'Deben Aplicar la teoria para entender los transistores BJT.',
+        fechaCreacion: new Date('2026-06-22T09:00:00Z'),
+        votos: 30,
+      }
     ]
   },
   {
@@ -107,29 +117,50 @@ export const mockPublicaciones: PublicacionesMock[] = [
     estado:'Resuelto',
     hiloRespuestas: [
       {
-                id: 'resp_4',
-                autor: { nombreUsuario: 'Prof. Alfredo Marot' },
-                contenido: 'Debes aplicar el cambio de carrera.',
-                fechaCreacion: new Date('2026-06-22T09:00:00Z'),
-                votos: 30, 
-            },
+        id: 'resp_4',
+        autor: { nombreUsuario: 'Prof. Alfredo Marot' },
+        contenido: 'Debes aplicar el cambio de carrera.',
+        fechaCreacion: new Date('2026-06-22T09:00:00Z'),
+        votos: 30, 
+      },
       {
-                id: 'resp_5',
-                autor: { nombreUsuario: 'Admin_UDONET' },
-                contenido: 'Esta publicacion sera eliminida.',
-                fechaCreacion: new Date('2026-06-22T09:00:00Z'),
-                votos: 30,
-                respuestasAnidadas: [
-                  {
-                    id: 'resp_6',
-                  autor: { nombreUsuario: 'Keiber' },
-                  contenido: '¿Alguien me explica de forma sencilla que es POO?.',
-                  fechaCreacion: new Date('2026-06-20T10:18:00Z'),
-                  votos: 5,
-                  }
-                ]
-            }
-            
+        id: 'resp_5',
+        autor: { nombreUsuario: 'Admin_UDONET' },
+        contenido: 'Esta publicacion sera eliminida.',
+        fechaCreacion: new Date('2026-06-22T09:00:00Z'),
+        votos: 30,
+        respuestasAnidadas: [
+          {
+            id: 'resp_6',
+            autor: { nombreUsuario: 'Keiber' },
+            contenido: '¿Alguien me explica de forma sencilla que es POO?.',
+            fechaCreacion: new Date('2026-06-20T10:18:00Z'),
+            votos: 5,
+          }
+        ]
+      }
     ]
   }
+];
+
+// 2. Función auxiliar para transformar recursivamente las fechas del JSON de string a Date
+const formatearRespuestas = (respuestas: any[]): RespuestaMock[] => {
+    return respuestas.map(resp => ({
+        ...resp,
+        fechaCreacion: new Date(resp.fechaCreacion),
+        respuestasAnidadas: resp.respuestasAnidadas ? formatearRespuestas(resp.respuestasAnidadas) : undefined
+    }));
+};
+
+// Mapeamos el JSON para corregir las fechas
+const publicacionesDesdeJson: PublicacionesMock[] = publicacionesJson.map((post: any) => ({
+    ...post,
+    fechaCreacion: new Date(post.fechaCreacion),
+    hiloRespuestas: formatearRespuestas(post.hiloRespuestas)
+})) as PublicacionesMock[];
+
+// 3. Exportamos el arreglo final combinado usando el operador Spread (...)
+export const mockPublicaciones: PublicacionesMock[] = [
+    ...publicacionesEstaticas,
+    ...publicacionesDesdeJson
 ];

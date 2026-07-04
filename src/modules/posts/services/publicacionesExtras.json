@@ -1,0 +1,131 @@
+[
+  {
+    "id": "post_005",
+    "titulo": "Inscripciones del nuevo semestre",
+    "contenido": "¿Alguien sabe cuándo empiezan las inscripciones para el próximo semestre?",
+    "comunidad": "General",
+    "tags": [
+      "Inscripciones",
+      "UDO"
+    ],
+    "autor": {
+      "nombreUsuario": "Maria_F"
+    },
+    "fechaCreacion": "2026-06-25T09:00:00Z",
+    "votos": 10,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": []
+  },
+  {
+    "id": "post_eb871076",
+    "titulo": "Hola soy nuevo en esto del git y quiero ...",
+    "contenido": "Hola soy nuevo en esto del git y quiero saber si esta bien, me pueden corregir?, aparte me pueden revisar este archivo, les recomiendo primero hacerlo usar esta pagina para que vean que no tiene virus ",
+    "comunidad": "General",
+    "tags": [
+      "Udo",
+      "Computacion"
+    ],
+    "autor": {
+      "nombreUsuario": "Joyce Valerio"
+    },
+    "fechaCreacion": "2026-07-02T16:04:34.041Z",
+    "votos": 0,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": []
+  },
+  {
+    "id": "post_b456c8bc",
+    "titulo": "hola soy nuevo en la creacion de repos e...",
+    "contenido": "hola soy nuevo en la creacion de repos en git necesito q me digan si lo hice bien ",
+    "comunidad": "General",
+    "tags": [
+      "Udo",
+      "sistemas"
+    ],
+    "autor": {
+      "nombreUsuario": "Keiber"
+    },
+    "fechaCreacion": "2026-07-02T16:08:13.969Z",
+    "votos": 0,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": []
+  },
+  {
+    "id": "post_7c19682a",
+    "titulo": "hola soy nuevo con git me pueden decir s...",
+    "contenido": "hola soy nuevo con git me pueden decir si el repo esta bien?",
+    "comunidad": "General",
+    "tags": [
+      "UDO",
+      "sistemas"
+    ],
+    "autor": {
+      "nombreUsuario": "Keiber"
+    },
+    "fechaCreacion": "2026-07-02T16:09:25.606Z",
+    "votos": 0,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": []
+  },
+  {
+    "id": "post_68682791",
+    "titulo": "hola soy de mecanica pero mi profesor qu...",
+    "contenido": "hola soy de mecanica pero mi profesor quiere que suba mis trabajos en git pero no se como manejar los repos, los de sistemas o de computacion me pueden ayudar? me dicen si mi repo esta bien o que puedo cambiar por favor, tengo que entregarle el git mas tarde el sabado a las 12:00am",
+    "comunidad": "General",
+    "tags": [
+      "mecanica",
+      "sistemas",
+      "computacion"
+    ],
+    "autor": {
+      "nombreUsuario": "Leonel"
+    },
+    "fechaCreacion": "2026-07-02T16:34:19.283Z",
+    "votos": 0,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": [],
+    "links": [
+      "https://github.com/Kurui02/proyecto-tdah"
+    ],
+    "linkMetadata": {
+      "title": "GitHub - Kurui02/proyecto-tdah",
+      "description": "Contribute to Kurui02/proyecto-tdah development by creating an account on GitHub.",
+      "image": {
+        "url": "https://opengraph.githubassets.com/9e9f58346c206501174fedd1e950f6a49adeda2250e65d43fcc59bd2d7bdf652/Kurui02/proyecto-tdah"
+      }
+    }
+  },
+  {
+    "id": "post_200ee6d8",
+    "titulo": "hola mi nombre es pablo y hackee esta cu...",
+    "contenido": "hola mi nombre es pablo y hackee esta cuenta, este es mi ig si me quieren seguir ",
+    "comunidad": "General",
+    "tags": [
+      "sistemas",
+      "general"
+    ],
+    "autor": {
+      "nombreUsuario": "Maria_F"
+    },
+    "fechaCreacion": "2026-07-04T13:21:03.941Z",
+    "votos": 0,
+    "repuestasCount": 0,
+    "estado": "Abierto",
+    "hiloRespuestas": [],
+    "links": [
+      "https://www.instagram.com/"
+    ],
+    "linkMetadata": {
+      "title": "Instagram",
+      "description": "",
+      "image": {
+        "url": ""
+      }
+    }
+  }
+]
