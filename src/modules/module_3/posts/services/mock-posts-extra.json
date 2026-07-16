@@ -176,5 +176,32 @@
     "replies": [],
     "links": [],
     "linkMetadata": null
+  },
+  {
+    "id": "post_07332dc1",
+    "title": "asdasd",
+    "content": "asdasd",
+    "community": "General",
+    "tags": [
+      "general"
+    ],
+    "author": {
+      "username": "Keiber"
+    },
+    "createdAt": "2026-07-16T04:35:17.726Z",
+    "votes": 0,
+    "repliesCount": 0,
+    "status": "Abierto",
+    "replies": [],
+    "links": [
+      "https://store.steampowered.com/?l=spanish"
+    ],
+    "linkMetadata": {
+      "title": "Steam Store",
+      "description": "Steam is the ultimate destination for playing, discussing, and creating games.",
+      "image": {
+        "url": "https://cdn.fastly.steamstatic.com/store/home/store_home_share.jpg"
+      }
+    }
   }
 ]

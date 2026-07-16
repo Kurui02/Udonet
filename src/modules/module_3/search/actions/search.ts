@@ -12,7 +12,7 @@ export async function searchPosts(term: string, community?: string, tags?: strin
         const searchQuery = term.trim().toLowerCase();
 
         await new Promise((resolve) => setTimeout(resolve, 500));
-         // esto no es mucho solo a traves de los datos falsos se filtra segun los parametros de busqeda
+         // esto no es mucho solo a traves de los datos falsos se filtra segun los parametros de busqueda
         const results = mockPosts.filter((post) => {
             const matchesTerm =
                 post.title.toLowerCase().includes(searchQuery)||

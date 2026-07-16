@@ -1,5 +1,6 @@
 // 1. Importamos el archivo JSON (Asegúrate de que la ruta empiece por ./ )
 import mockPostsJson from '@module_3/posts/services/mock-posts-extra.json';
+import { User } from '@/lib/types/user';
 
 export interface MockPost {
     id: string;
@@ -193,3 +194,16 @@ export const mockPosts: MockPost[] = [
     ...staticPosts,
     ...postsFromJson
 ];
+
+const mockProfiles: User[] = [
+  { id: 'user_001', email: 'leonel@udo.edu.ve', username: 'Leonel', avatar_url: null, bio: 'Estudiante de medicina', is_public: true, role: 'regular', reputation: 100, created_at: new Date().toISOString() },
+  { id: 'user_002', email: 'nepthali@udo.edu.ve', username: 'Nepthali', avatar_url: null, bio: 'Estudiante de computación', is_public: true, role: 'regular', reputation: 120, created_at: new Date().toISOString() },
+  { id: 'user_003', email: 'joyce@udo.edu.ve', username: 'Joyce Valerio', avatar_url: null, bio: 'Estudiante de sistemas', is_public: true, role: 'regular', reputation: 150, created_at: new Date().toISOString() },
+  { id: 'user_004', email: 'dano@udo.edu.ve', username: 'Dano', avatar_url: null, bio: 'Colaborador de UdoNET', is_public: true, role: 'moderator', reputation: 200, created_at: new Date().toISOString() },
+  { id: 'user_005', email: 'keiber@udo.edu.ve', username: 'Keiber', avatar_url: null, bio: 'Estudiante', is_public: true, role: 'regular', reputation: 90, created_at: new Date().toISOString() },
+];
+
+export async function getRandomUserProfile(): Promise<User> {
+  const randomIndex = Math.floor(Math.random() * mockProfiles.length);
+  return mockProfiles[randomIndex];
+}

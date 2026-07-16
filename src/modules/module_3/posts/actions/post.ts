@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getLinkMetadata } from "@module_3/posts/actions/links"; 
-import { mockPosts, MockPost } from "@module_3/posts/services/mock-data"; 
+import { mockPosts, MockPost, getRandomUserProfile } from "@module_3/posts/services/mock-data"; 
+import { PostServiceFactory } from "@module_3/posts/services/factory";
 import fs from "fs/promises";
 import path from "path";
 
@@ -57,11 +58,7 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
       }
     }
 
-    const randomAuthors = [
-      "Leonel", "Nepthali", "Joyce Valerio", "Dano", "Keiber", 
-      "Maria_F", "Estudiante_UDO", "Anon_Sistemas"
-    ];
-    const randomAuthor = randomAuthors[Math.floor(Math.random() * randomAuthors.length)];
+    const authorProfile = await getRandomUserProfile();
 
     // Estructura completa guardando Links y Metadata
     const newPost: MockPost = {
@@ -70,7 +67,7 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
       content: postText,
       community: "General", 
       tags: tagsArray, 
-      author: { username: randomAuthor },
+      author: { username: authorProfile.username },
       createdAt: new Date(),
       votes: 0,
       repliesCount: 0,
@@ -102,5 +99,15 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
   } catch (error) {
     console.error("Error en createPostAction:", error);
     return { success: false, error: "Error interno en el servidor." };
+  }
+}
+
+export async function getPostsAction(filter?: string): Promise<MockPost[]> {
+  try {
+    const service = PostServiceFactory.getService();
+    return await service.getPosts(filter);
+  } catch (error) {
+    console.error("Error en getPostsAction:", error);
+    return [];
   }
 }

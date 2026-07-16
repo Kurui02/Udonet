@@ -4,12 +4,13 @@
 export { default as Module3Container } from './components/ModuleContainer';
 
 // Funciones expuestas para búsqueda
-export { searchPosts } from './search/exports';
+export { searchPosts, SearchInput } from './search/exports';
 
-// 3. Datos y tipos expuestos para posts/hilos
-export { mockPosts } from './posts/exports';
+// Datos y tipos expuestos para posts/hilos
+export { mockPosts, PostList } from './posts/exports';
 export type { MockPost, MockReply } from './posts/exports';
 
 // 4. Servicios y Factoría de Datos
 export { PostServiceFactory } from './posts/services/factory';
-export type { IPostService } from './posts/services/types';
+export type { PostService } from './posts/services/types';
+export { CreatePostProvider, useCreatePost } from './posts/exports';
