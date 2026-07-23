@@ -230,5 +230,145 @@
         "url": "https://img.youtube.com/vi/J8U9czVT7tM/maxresdefault.jpg"
       }
     }
+  },
+  {
+    "id": "post_a114e18e",
+    "title": "me da igula dkasenhfoiejf esf",
+    "content": "me da igula dkasenhfoiejf esf",
+    "community": "General",
+    "tags": [
+      "sistemas",
+      "udo"
+    ],
+    "author": {
+      "username": "Leonel"
+    },
+    "createdAt": "2026-07-23T19:45:23.755Z",
+    "votes": 0,
+    "repliesCount": 0,
+    "status": "Abierto",
+    "replies": [],
+    "links": [],
+    "linkMetadata": null
+  },
+  {
+    "id": "post_53242174",
+    "title": "pruevbasa",
+    "content": "dsadsadsad",
+    "community": "General",
+    "tags": [
+      "ayuda"
+    ],
+    "author": {
+      "username": "Joyce Valerio"
+    },
+    "createdAt": "2026-07-23T20:12:59.033Z",
+    "votes": 0,
+    "repliesCount": 0,
+    "status": "Abierto",
+    "replies": [],
+    "links": [],
+    "linkMetadata": null
+  },
+  {
+    "id": "post_9d7b763f",
+    "title": "respuetas prubea 2",
+    "content": "intento dos con los botones de respuetsas",
+    "community": "General",
+    "tags": [
+      "intnetos"
+    ],
+    "author": {
+      "username": "Joyce Valerio"
+    },
+    "createdAt": "2026-07-23T20:38:30.155Z",
+    "votes": 0,
+    "repliesCount": 2,
+    "status": "Abierto",
+    "replies": [
+      {
+        "id": "resp_0f2e1718",
+        "author": {
+          "username": "UsuarioActivo"
+        },
+        "content": "primera respuesta al post",
+        "createdAt": "2026-07-23T20:39:03.463Z",
+        "votes": 0,
+        "nestedReplies": [
+          {
+            "id": "resp_e7488606",
+            "author": {
+              "username": "UsuarioActivo"
+            },
+            "content": "a",
+            "createdAt": "2026-07-23T20:46:22.114Z",
+            "votes": 0,
+            "nestedReplies": []
+          }
+        ]
+      }
+    ],
+    "links": [],
+    "linkMetadata": null
+  },
+  {
+    "id": "post_52f48e39",
+    "title": "Titulo de Publicacion Intento",
+    "content": "prueba de Titulo, Respuestas y botones para votos",
+    "community": "General",
+    "tags": [
+      "prueba",
+      "udonet"
+    ],
+    "author": {
+      "username": "Dano"
+    },
+    "createdAt": "2026-07-23T20:51:17.090Z",
+    "votes": 0,
+    "repliesCount": 3,
+    "status": "Abierto",
+    "replies": [
+      {
+        "id": "resp_00a860dc",
+        "author": {
+          "username": "UsuarioActivo"
+        },
+        "content": "Intento de respuesta a post principal",
+        "createdAt": "2026-07-23T20:51:54.670Z",
+        "votes": 0,
+        "nestedReplies": [
+          {
+            "id": "resp_f5494fb1",
+            "author": {
+              "username": "UsuarioActivo"
+            },
+            "content": "respuesta anidada de otro usuario para crear el hilo",
+            "createdAt": "2026-07-23T20:52:23.052Z",
+            "votes": 0,
+            "nestedReplies": []
+          }
+        ]
+      },
+      {
+        "id": "resp_41c179f4",
+        "author": {
+          "username": "UsuarioActivo"
+        },
+        "content": "otra respuesta",
+        "createdAt": "2026-07-23T20:52:40.651Z",
+        "votes": 0,
+        "nestedReplies": []
+      }
+    ],
+    "links": [
+      "https://youtu.be/qgDaO_gz4MI?si=18m_QGhWsP_esrXU"
+    ],
+    "linkMetadata": {
+      "title": "HUGs",
+      "description": "Paledusk - Topic",
+      "image": {
+        "url": "https://img.youtube.com/vi/qgDaO_gz4MI/maxresdefault.jpg"
+      }
+    }
   }
 ]

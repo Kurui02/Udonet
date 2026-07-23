@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getLinkMetadata } from "@module_3/posts/actions/links"; 
-import { mockPosts, MockPost, getRandomUserProfile } from "@module_3/posts/services/mock-data"; 
+import { mockPosts, MockPost,MockReply, getRandomUserProfile } from "@module_3/posts/services/mock-data"; 
 import { PostServiceFactory } from "@module_3/posts/services/factory";
 import fs from "fs/promises";
 import path from "path";
@@ -26,10 +26,15 @@ const JSON_FILE_PATH = path.join(
 
 export async function createPostAction(formData: FormData): Promise<ActionResponse> {
   try {
+    const title = (formData.get("title") as string) || "";
     const postText = (formData.get("postText") as string) || "";
     const detectedUrl = (formData.get("detectedUrl") as string) || "";
     const tagsInput = (formData.get("tags") as string) || "";
     const file = formData.get("file") as File | null;
+
+    if (!title.trim()) {
+      return { success: false, error: "El título de la publicación es obligatorio." };
+    }
 
     // 1. Validación del texto del post
     if (!postText.trim()) {
@@ -82,7 +87,7 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
     // 6. Construcción del objeto de la nueva publicación
     const newPost: MockPost = {
       id: `post_${crypto.randomUUID().substring(0, 8)}`,
-      title: postText.substring(0, 40) + (postText.length > 40 ? "..." : ""),
+      title: title.trim(),
       content: postText,
       community: "General",
       tags: tagsArray,
@@ -131,3 +136,4 @@ export async function getPostsAction(filter?: string): Promise<MockPost[]> {
     return [];
   }
 }
+

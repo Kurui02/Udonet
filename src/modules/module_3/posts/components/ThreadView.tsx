@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { getThread } from '@module_3/posts/actions/thread';
+import { addReplyAction } from '@module_3/posts/actions/reply';
 import { MockPost, MockReply } from '@module_3/posts/services/mock-data';
 
 interface ThreadViewProp {
@@ -9,46 +10,129 @@ interface ThreadViewProp {
   onBack: () => void;
 }
 
-function Comments({ reply, level = 0 }: { reply: MockReply; level?: number }) {
-  const indentation = level * 16;
+function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; postId: string; onAddReply:() => void; level?: number }) {
+  const [showReplyBox, setShowReplyBox] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [isPending, startTransition] = useTransition();
+  const indentation = Math.min(level *20, 80);
+
+  const handleSubmitReply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    startTransition(async () => {
+      const res = await addReplyAction(postId, reply.id, replyContent);
+      if (res.success) {
+        setReplyContent('');
+        setShowReplyBox(false);
+        onAddReply();
+      } else {
+        alert(res.error);
+      }
+    });
+  };
 
   return (
-    <div
-      style={{ marginLeft: `${indentation}px` }}
-      className="border-l-2 border-gray-800 pl-4 mt-4 space-y-1.5"
-    >
-      <div className="text-xs text-blue-400 font-semibold">
-        <strong>{reply.author.username}</strong> • {reply.votes} votos
-      </div>
-      <p className="text-sm text-gray-200">{reply.content}</p>
+        <div style={{ marginLeft: `${indentation}px`, borderLeft: '2px solid #374151', padding: '12px', marginTop: '12px', backgroundColor: '#18181b', borderRadius: '6px' }}>
+            <div style={{ fontSize: '12px', color: '#60a5fa', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                <span><strong>{reply.author.username}</strong> • {new Date(reply.createdAt).toLocaleDateString()}</span>
+            </div>
+            
+            <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#e5e7eb' }}>{reply.content}</p>
 
-      <button className="text-xs px-2.5 py-1 bg-[#222] hover:bg-[#2e2e2e] text-gray-300 rounded border border-gray-800 transition cursor-pointer">
-        Responder
-      </button>
+            {/* BOTONES DE INTERACCIÓN */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#27272a', padding: '2px 6px', borderRadius: '4px', border: '1px solid #3f3f46' }}>
+                    <button 
+                        onClick={() => alert("Lógica de votos(Módulo 4)")} 
+                        style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        ▲
+                    </button>
+                    <span style={{ color: '#fff', fontWeight: 'bold', padding: '0 2px' }}>{reply.votes}</span>
+                    <button 
+                        onClick={() => alert("Lógica de votos(Módulo 4)")} 
+                        style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        ▼
+                    </button>
+                </div>
 
-      {reply.nestedReplies && reply.nestedReplies.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {reply.nestedReplies.map((child) => (
-            <Comments key={child.id} reply={child} level={level + 1} />
-          ))}
+                <button 
+                    onClick={() => setShowReplyBox(!showReplyBox)} 
+                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '600' }}
+                >
+                    {showReplyBox ? 'Cancelar' : 'Responder'}
+                </button>
+            </div>
+
+            {/* CAJA DE TEXTO PARA RESPONDER*/}
+            {showReplyBox && (
+                <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder={`Respondiendo a ${reply.author.username}...`}
+                        rows={2}
+                        disabled={isPending}
+                        style={{ width: '100%', padding: '8px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '4px', color: '#fff', fontSize: '13px', resize: 'none' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button 
+                            type="submit" 
+                            disabled={!replyContent.trim() || isPending}
+                            style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            {isPending ? 'Enviando...' : 'Enviar Respuesta'}
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* RECURSIVIDAD DE RESPUESTAS */}
+            {reply.nestedReplies && reply.nestedReplies.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                    {reply.nestedReplies.map((child) => (
+                        <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
+                    ))}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
   const [thread, setThread] = useState<MockPost | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [showMainReplyBox, setShowMainReplyBox] = useState(false);
+  const [mainReplyContent, setMainReplyContent] = useState('');
+  const [isPending, startTransition] = useTransition();
+
+   const loadData = async () => {
+    const data = await getThread(threadId);
+    setThread(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      const data = await getThread(threadId);
-      setThread(data);
-      setLoading(false);
-    };
     loadData();
-  }, [threadId]);
+  }, [threadId])
+
+  const handleMainReplySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mainReplyContent.trim() || !thread) return;
+
+    startTransition(async () => {
+      const res = await addReplyAction(thread.id, null, mainReplyContent);
+      if (res.success) {
+        setMainReplyContent('');
+        setShowMainReplyBox(false);
+        loadData(); // Recargamos para sincronizar cambios persistidos
+      } else {
+        alert(res.error);
+      }
+    });
+  };
 
   if (loading) {
     return (
@@ -181,9 +265,58 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
           <div>
             Autor: <strong className="text-gray-200">{thread.author.username}</strong>
           </div>
-          <div>Votos: {thread.votes}</div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowMainReplyBox(!showMainReplyBox)}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-xs"
+            >
+              {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#111827', padding: '4px 10px', borderRadius: '6px', border: '1px solid #374151' }}>
+              <button 
+                onClick={() => alert("Lógica de votos (Módulo 4)")} 
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+              >
+                ▲
+              </button>
+              <span style={{ fontWeight: 'bold', color: '#fff' }}>{thread.votes}</span>
+              <button 
+                onClick={() => alert("Lógica de votos (Módulo 4)")} 
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+              >
+                ▼
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+      
+      {/* CAJA DE TEXTO PARA EL HILO PRINCIPAL */}
+      {showMainReplyBox && (
+        <div className="p-4 bg-[#1f2937] rounded-xl border border-gray-700 shadow-md">
+          <h3 className="text-sm font-semibold mb-2">Escribe tu respuesta</h3>
+          <form onSubmit={handleMainReplySubmit}>
+            <textarea 
+              value={mainReplyContent}
+              onChange={(e) => setMainReplyContent(e.target.value)}
+              placeholder="Escribe lo que piensas sobre este hilo..."
+              rows={3}
+              disabled={isPending}
+              style={{ width: '100%', padding: '10px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '6px', color: '#fff', fontSize: '14px', resize: 'none', marginBottom: '10px' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                type="submit" 
+                disabled={!mainReplyContent.trim() || isPending}
+                style={{ padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                {isPending ? 'Publicando...' : 'Comentar Hilo'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Sección Respuestas */}
       <div className="space-y-4 pt-4">
@@ -196,7 +329,7 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
             <p className="text-sm text-gray-500 italic">No hay respuestas aún.</p>
           ) : (
             thread.replies.map((reply) => (
-              <Comments key={reply.id} reply={reply} />
+              <Comments key={reply.id} reply={reply} postId={thread.id} onAddReply={loadData} />
             ))
           )}
         </div>

@@ -18,6 +18,7 @@ interface CreatePostModalProps {
 }
 
 export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
+  const [title, setTitle] = useState("");
   const [postText, setPostText] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [tags, setTags] = useState("");
@@ -81,6 +82,7 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
     setStatusMessage(null);
 
     const formData = new FormData();
+    formData.append("title", title);
     formData.append("postText", postText);
     formData.append("tags", tags);
 
@@ -99,6 +101,7 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
       if (response.success) {
         setStatusMessage({ success: true, text: response.message || "¡Post creado con éxito!" });
 
+        setTitle("");
         setPostText("");
         setUrlInput("");
         setTags("");
@@ -135,6 +138,17 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
         <h2 className="text-base font-semibold text-gray-300">Crear Nueva Publicación</h2>
 
         <form onSubmit={handlePublish} className="space-y-3">
+
+          <input 
+            type="text"
+            name="title"
+            placeholder="Título de la Publicación"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            className="w-full p-2.5 border border-gray-750 bg-[#1a1a1a] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white placeholder-gray-500 font-bold" 
+          />
+          
           {/* Campo 1: Qué estás pensando */}
           <textarea
             name="postText"
