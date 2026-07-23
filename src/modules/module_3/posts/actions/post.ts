@@ -14,7 +14,15 @@ interface ActionResponse {
 }
 
 const MAX_FILE_SIZE = 4194304; // 4MB en Bytes
-const JSON_FILE_PATH = path.join(process.cwd(), "src", "modules", "module_3", "posts", "services", "mock-posts-extra.json");
+const JSON_FILE_PATH = path.join(
+  process.cwd(),
+  "src",
+  "modules",
+  "module_3",
+  "posts",
+  "services",
+  "mock-posts-extra.json"
+);
 
 export async function createPostAction(formData: FormData): Promise<ActionResponse> {
   try {
@@ -23,12 +31,12 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
     const tagsInput = (formData.get("tags") as string) || "";
     const file = formData.get("file") as File | null;
 
-    // 1. Validaciones básicas
+    // 1. Validación del texto del post
     if (!postText.trim()) {
       return { success: false, error: "El texto del post no puede estar vacío." };
     }
 
-    // 2. Validación de tags obligatorios
+    // 2. Validación de etiquetas (Tags)
     if (!tagsInput.trim()) {
       return { success: false, error: "Es obligatorio ingresar al menos un tag." };
     }
@@ -42,57 +50,69 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
       return { success: false, error: "Formato de tags inválido. Usa comas para separar." };
     }
 
-    // Procesamiento de archivos
+    // 3. Validación de archivos
     if (file && file.size > 0) {
       if (file.size > MAX_FILE_SIZE) {
         return { success: false, error: "El archivo excede el tamaño máximo de 4MB." };
       }
     }
 
-    // Obtención de metadatos de URL
+    // 4. Obtención y procesamiento de metadatos de URL
     let finalMetadata = null;
-    if (detectedUrl) {
-      const metaResult = await getLinkMetadata(detectedUrl);
-      if (metaResult.success === 1 && metaResult.meta) {
-        finalMetadata = metaResult.meta;
+    const cleanUrl = detectedUrl.trim();
+
+    if (cleanUrl) {
+      try {
+        const metaResult = (await getLinkMetadata(cleanUrl)) as {
+          success?: number;
+          meta?: any;
+        };
+
+        if (metaResult && metaResult.success === 1 && metaResult.meta) {
+          finalMetadata = metaResult.meta;
+        }
+      } catch (err) {
+        console.warn("No se pudieron obtener los metadatos de la URL, pero el link se conservará:", err);
       }
     }
 
+    // 5. Perfil de usuario dinámico/simulado
     const authorProfile = await getRandomUserProfile();
 
-    // Estructura completa guardando Links y Metadata
+    // 6. Construcción del objeto de la nueva publicación
     const newPost: MockPost = {
       id: `post_${crypto.randomUUID().substring(0, 8)}`,
-      title: postText.substring(0, 40) + (postText.length > 40 ? "..." : ""), 
+      title: postText.substring(0, 40) + (postText.length > 40 ? "..." : ""),
       content: postText,
-      community: "General", 
-      tags: tagsArray, 
+      community: "General",
+      tags: tagsArray,
       author: { username: authorProfile.username },
       createdAt: new Date(),
       votes: 0,
       repliesCount: 0,
       status: "Abierto" as const,
       replies: [],
-      links: detectedUrl ? [detectedUrl] : [], // Almacenado como array en links
-      linkMetadata: finalMetadata            // Guardamos la miniatura scrapeada
+      links: cleanUrl ? [cleanUrl] : [], // Guarda siempre la URL en el array si fue ingresada
+      linkMetadata: finalMetadata        // Guarda los metadatos del scraper o null
     };
 
-    // Persistencia en JSON
+    // 7. Persistencia de datos en el archivo JSON
     let extraPosts: MockPost[] = [];
     try {
       const contenidoJson = await fs.readFile(JSON_FILE_PATH, "utf-8");
       extraPosts = JSON.parse(contenidoJson);
     } catch (readError) {
       const err = readError as { code?: string };
+      // Si el archivo JSON no existe aún, se inicializa como lista vacía
       if (err.code !== "ENOENT") throw readError;
     }
 
     extraPosts.push(newPost);
     await fs.writeFile(JSON_FILE_PATH, JSON.stringify(extraPosts, null, 2), "utf-8");
 
-    // Sincronización en memoria y Revalidación de Next.js
+    // 8. Actualización del estado en memoria y revalidación de Next.js
     mockPosts.push(newPost);
-    revalidatePath("/"); 
+    revalidatePath("/");
 
     return { success: true, message: "Post creado correctamente." };
 
