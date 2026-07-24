@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getLinkMetadata } from "@module_3/posts/actions/links"; 
-import { mockPosts, MockPost,MockReply, getRandomUserProfile } from "@module_3/posts/services/mock-data"; 
+import { mockPosts, MockPost } from "@module_3/posts/services/mock-data"; 
 import { PostServiceFactory } from "@module_3/posts/services/factory";
 import fs from "fs/promises";
 import path from "path";
@@ -13,7 +13,11 @@ interface ActionResponse {
   error?: string;
 }
 
-const MAX_FILE_SIZE = 4194304; // 4MB en Bytes
+export interface CommunityOption {
+  id: string;
+  name: string;
+}
+
 const JSON_FILE_PATH = path.join(
   process.cwd(),
   "src",
@@ -24,24 +28,46 @@ const JSON_FILE_PATH = path.join(
   "mock-posts-extra.json"
 );
 
+/**
+ * Obtiene las comunidades que sigue el usuario autenticado para mostrarlas en la tarjeta/selector.
+ */
+export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[]> {
+  try {
+    //  AQUÍ UNIR BASE DE DATOS (Filtrar y retornar solo las comunidades que el usuario sigue)
+   
+    return [
+      { id: "General", name: "General" }
+    ];
+  } catch (error) {
+    console.error("Error al obtener las comunidades del usuario:", error);
+    return [{ id: "General", name: "General" }];
+  }
+}
+
+/**
+ * Acción para crear la publicación dirigida a la comunidad elegida por el usuario.
+ */
 export async function createPostAction(formData: FormData): Promise<ActionResponse> {
   try {
     const title = (formData.get("title") as string) || "";
     const postText = (formData.get("postText") as string) || "";
     const detectedUrl = (formData.get("detectedUrl") as string) || "";
     const tagsInput = (formData.get("tags") as string) || "";
-    const file = formData.get("file") as File | null;
 
+    // Obtenemos la comunidad seleccionada (de las que sigue el usuario). Si viene vacía, asignamos "General"
+    const community = ((formData.get("communityId") as string) || (formData.get("community") as string) || "General").trim();
+
+    // 1. Validación del título del post
     if (!title.trim()) {
       return { success: false, error: "El título de la publicación es obligatorio." };
     }
 
-    // 1. Validación del texto del post
+    // 2. Validación del texto del post
     if (!postText.trim()) {
       return { success: false, error: "El texto del post no puede estar vacío." };
     }
 
-    // 2. Validación de etiquetas (Tags)
+    // 3. Validación de etiquetas (Tags)
     if (!tagsInput.trim()) {
       return { success: false, error: "Es obligatorio ingresar al menos un tag." };
     }
@@ -53,13 +79,6 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
 
     if (tagsArray.length === 0) {
       return { success: false, error: "Formato de tags inválido. Usa comas para separar." };
-    }
-
-    // 3. Validación de archivos
-    if (file && file.size > 0) {
-      if (file.size > MAX_FILE_SIZE) {
-        return { success: false, error: "El archivo excede el tamaño máximo de 4MB." };
-      }
     }
 
     // 4. Obtención y procesamiento de metadatos de URL
@@ -80,25 +99,33 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
         console.warn("No se pudieron obtener los metadatos de la URL, pero el link se conservará:", err);
       }
     }
-
-    // 5. Perfil de usuario dinámico/simulado
-    const authorProfile = await getRandomUserProfile();
+    // 5. Datos del usuario autenticado
+   // AQUÍ UNIR BASE DE DATOS (Obtener usuario autenticado desde la sesión/BD)
+    const currentUser = {
+      id: "user_created_123",
+      username: "UsuarioRegistrado",
+      avatar: "" // Dejar vacío para renderizar el círculo blanco si aún no tiene avatar en BD
+    };
 
     // 6. Construcción del objeto de la nueva publicación
     const newPost: MockPost = {
       id: `post_${crypto.randomUUID().substring(0, 8)}`,
       title: title.trim(),
       content: postText,
-      community: "General",
+      community: community || "General",
       tags: tagsArray,
-      author: { username: authorProfile.username },
+      author: {
+        id: currentUser.id, 
+        username: currentUser.username,
+        avatar: currentUser.avatar
+      },
       createdAt: new Date(),
       votes: 0,
       repliesCount: 0,
       status: "Abierto" as const,
       replies: [],
-      links: cleanUrl ? [cleanUrl] : [], // Guarda siempre la URL en el array si fue ingresada
-      linkMetadata: finalMetadata        // Guarda los metadatos del scraper o null
+      links: cleanUrl ? [cleanUrl] : [],
+      linkMetadata: finalMetadata
     };
 
     // 7. Persistencia de datos en el archivo JSON
@@ -108,7 +135,6 @@ export async function createPostAction(formData: FormData): Promise<ActionRespon
       extraPosts = JSON.parse(contenidoJson);
     } catch (readError) {
       const err = readError as { code?: string };
-      // Si el archivo JSON no existe aún, se inicializa como lista vacía
       if (err.code !== "ENOENT") throw readError;
     }
 
@@ -136,4 +162,3 @@ export async function getPostsAction(filter?: string): Promise<MockPost[]> {
     return [];
   }
 }
-

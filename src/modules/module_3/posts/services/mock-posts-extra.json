@@ -217,9 +217,20 @@
     },
     "createdAt": "2026-07-23T01:31:16.623Z",
     "votes": 0,
-    "repliesCount": 0,
+    "repliesCount": 1,
     "status": "Abierto",
-    "replies": [],
+    "replies": [
+      {
+        "id": "resp_61e24cb7",
+        "author": {
+          "username": "UsuarioActivo"
+        },
+        "content": "yo creo que esta hecho con IA",
+        "createdAt": "2026-07-24T13:48:39.589Z",
+        "votes": 0,
+        "nestedReplies": []
+      }
+    ],
     "links": [
       "https://www.youtube.com/watch?v=J8U9czVT7tM&list=RDJ8U9czVT7tM&start_radio=1"
     ],
@@ -370,5 +381,26 @@
         "url": "https://img.youtube.com/vi/qgDaO_gz4MI/maxresdefault.jpg"
       }
     }
+  },
+  {
+    "id": "post_741bbfbc",
+    "title": "miren este video",
+    "content": "hola miren",
+    "community": "General",
+    "tags": [
+      "hola"
+    ],
+    "author": {
+      "id": "user_created_123",
+      "username": "UsuarioRegistrado",
+      "avatar": ""
+    },
+    "createdAt": "2026-07-24T13:59:12.389Z",
+    "votes": 0,
+    "repliesCount": 0,
+    "status": "Abierto",
+    "replies": [],
+    "links": [],
+    "linkMetadata": null
   }
 ]
