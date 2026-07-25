@@ -10,6 +10,132 @@ interface ThreadViewProp {
   onBack: () => void;
 }
 
+const MockUsers = [
+  'Alejandro','Joyce_Valerio', 'Dano', 'Keiber'
+];
+
+interface MentionTextareaProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  rows?: number;
+}
+
+function MentionTextarea({ value, onChange, placeholder, disabled, rows }: MentionTextareaProps) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [mentionQuery, setMentionQuery] = useState({ start: -1, text: '' });
+
+  const checkMention = (text: string, cursor: number) => {
+    const textBeforeCursor = text.slice(0, cursor);
+    const match = textBeforeCursor.match(/(?:^|\s)@(\w*)$/);
+
+    if (match) {
+      const search = match[1].toLowerCase();
+      const filtered = MockUsers.filter(u => u.toLowerCase().includes(search));
+      setSuggestions(filtered);
+      setMentionQuery({ start: cursor - match[1].length, text: match[1] });
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(e.target.value);
+    checkMention(e.target.value, e.target.selectionStart);
+  };
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    checkMention(value, (e.target as HTMLTextAreaElement).selectionStart);
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    checkMention(value, (e.target as HTMLTextAreaElement).selectionStart);
+  };
+
+  const insertMention = (username: string) => {
+    const beforeAt = value.slice(0, mentionQuery.start - 1);
+    const endOfQuery = mentionQuery.start + mentionQuery.text.length;
+    const afterCursor = value.slice(endOfQuery);
+    
+    const newValue = `${beforeAt}@${username} ${afterCursor}`;
+    onChange(newValue);
+    setSuggestions([]);
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+      <textarea
+        value={value}
+        onChange={handleChange}
+        onKeyUp={handleKeyUp}
+        onClick={handleClick}
+        placeholder={placeholder}
+        rows={rows}
+        disabled={disabled}
+        style={{ width: '100%', padding: '10px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '6px', color: '#fff', fontSize: '14px', resize: 'none' }}
+      />
+      
+      {suggestions.length > 0 && (
+        <ul style={{
+          position: 'absolute',
+          top: '100%',
+          left: '10px',
+          backgroundColor: '#1f2937',
+          border: '1px solid #4b5563',
+          borderRadius: '8px',
+          listStyle: 'none',
+          padding: '4px 0',
+          margin: '4px 0 0 0',
+          width: '220px',
+          maxHeight: '160px',
+          overflowY: 'auto',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+          zIndex: 50
+        }}>
+          {suggestions.map(user => (
+            <li
+              key={user}
+              onClick={() => insertMention(user)}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#374151')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#2563eb', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                {user.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontWeight: '500' }}>{user}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const renderTextWithMentions = (text: string) => {
+  const mentionRegex = /(@[\w_]+)/g;
+  const parts = text.split(mentionRegex);
+
+  return parts.map((part, index) => {
+    if (part.match(mentionRegex)) {
+      const username = part.substring(1); 
+      return (
+        <span 
+          key={index} 
+          className="text-blue-400 font-semibold cursor-pointer hover:underline"
+          onClick={() => alert(`Esto redigiria al perfil del usuario: ${username}`)}
+          title={`Ver perfil de ${username}`}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
+
 function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; postId: string; onAddReply:() => void; level?: number }) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
@@ -37,7 +163,9 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
                 <span><strong>{reply.author.username}</strong> • {new Date(reply.createdAt).toLocaleDateString()}</span>
             </div>
             
-            <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#e5e7eb' }}>{reply.content}</p>
+            <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#e5e7eb', whiteSpace: 'pre-wrap' }}>
+              {renderTextWithMentions(reply.content)}
+            </p>
 
             {/* BOTONES DE INTERACCIÓN */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' }}>
@@ -68,13 +196,13 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
             {/* CAJA DE TEXTO PARA RESPONDER*/}
             {showReplyBox && (
                 <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <textarea
-                        value={replyContent}
-                        onChange={(e) => setReplyContent(e.target.value)}
-                        placeholder={`Respondiendo a ${reply.author.username}...`}
-                        rows={2}
-                        disabled={isPending}
-                        style={{ width: '100%', padding: '8px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '4px', color: '#fff', fontSize: '13px', resize: 'none' }}
+                    
+                    <MentionTextarea
+                      value={replyContent}
+                      onChange={setReplyContent}
+                      placeholder={`Respondiendo a ${reply.author.username}...`}
+                      rows={2}
+                      disabled={isPending}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button 
@@ -191,8 +319,9 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
 
         {/* Título y Contenido */}
         <h1 className="text-xl font-bold text-white">{thread.title}</h1>
-        <p className="text-sm text-gray-300 whitespace-pre-line leading-relaxed">
-          {thread.content}
+
+        <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+          {renderTextWithMentions(thread.content)}
         </p>
 
         {/* ------------------------------------------------------------- */}
@@ -297,13 +426,12 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
         <div className="p-4 bg-[#1f2937] rounded-xl border border-gray-700 shadow-md">
           <h3 className="text-sm font-semibold mb-2">Escribe tu respuesta</h3>
           <form onSubmit={handleMainReplySubmit}>
-            <textarea 
+            <MentionTextarea 
               value={mainReplyContent}
-              onChange={(e) => setMainReplyContent(e.target.value)}
+              onChange={setMainReplyContent}
               placeholder="Escribe lo que piensas sobre este hilo..."
               rows={3}
               disabled={isPending}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '6px', color: '#fff', fontSize: '14px', resize: 'none', marginBottom: '10px' }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button 

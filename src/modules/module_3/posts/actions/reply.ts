@@ -64,4 +64,21 @@ export async function addReplyAction(postId: string, parentId: string | null, co
         console.error("Error al guardar respuesta:", error);
         return { success: false, error: "No se pudo guardar la respuesta." };
     }
+
+    const mentionRegex = /@([\w_]+)/g;
+    let match;
+    const mentionedUser : string[] = [];
+
+    while ((match = mentionRegex.exec(content.trim())) !== null) {
+        mentionedUser.push(match[1]); 
+    }
+
+    if (mentionedUser.length > 0) {
+
+        // conexiones al modulo 4
+        //import de funcion
+        //await modulo 4
+        
+        console.log("Usuario mencionado detectado:", mentionedUser);
+    }
 }
