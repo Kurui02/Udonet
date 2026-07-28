@@ -1,16 +1,12 @@
 'use server';
 
-import { mockPosts, MockPost } from '@module_3/posts/services/mock-data';
+import { SupabasePostService } from '@module_3/posts/services/supabase-service';
+import { UnifiedPost } from '@module_3/posts/services/types';
 
-export async function getThread(id: string): Promise<MockPost | null> {
+export async function getThread(id: string): Promise<UnifiedPost | null> {
     try {
-        const foundThread = mockPosts.find(post => post.id === id);
-        
-        if (!foundThread) {
-            return null;
-        }
-
-        return foundThread;
+        const service = SupabasePostService.getInstance();
+        return await service.getThread(id);
     } catch (error) {
         console.error("Error al obtener el hilo:", error);
         return null;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
-import { MockPost } from '@module_3/posts/services/mock-data';
+import { UnifiedPost } from '@module_3/posts/services/types';
 
 interface PostListProps {
   onSelectPost: (id: string) => void;
@@ -11,7 +11,7 @@ interface PostListProps {
 
 export default function PostList({ onSelectPost }: PostListProps) {
   const searchParams = useSearchParams();
-  const [posts, setPosts] = useState<MockPost[]>([]);
+  const [posts, setPosts] = useState<UnifiedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   const query = searchParams.get('q') || '';
@@ -21,7 +21,7 @@ export default function PostList({ onSelectPost }: PostListProps) {
     const fetchPosts = async () => {
       setLoading(true);
       try {
-        let results: MockPost[] = [];
+        let results: UnifiedPost[] = [];
         if (query.trim() === '') {
           results = [];
         } else {
@@ -73,9 +73,9 @@ export default function PostList({ onSelectPost }: PostListProps) {
       <ul className="space-y-3">
         {posts.map((post) => {
           const statusColor = 
-            post.status === 'Resuelto' 
+            post.status === 'closed' 
               ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-400' 
-              : post.status === 'Fijado' 
+              : post.is_pinned 
                 ? 'bg-amber-950/50 border border-amber-800 text-amber-400' 
                 : 'bg-blue-950/50 border border-blue-800 text-blue-400';
 
@@ -88,10 +88,10 @@ export default function PostList({ onSelectPost }: PostListProps) {
               <div className="flex items-center justify-between gap-3 mb-2.5">
                 <div className="flex items-center space-x-2.5">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    F / {post.community || 'General'}
+                    F / {post.community_name || 'General'}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColor}`}>
-                    {post.status}
+                    {post.status === 'closed' ? 'Resuelto' : 'Abierto'}
                   </span>
                 </div>
 
@@ -127,12 +127,11 @@ export default function PostList({ onSelectPost }: PostListProps) {
               )}
 
               <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-850/50 pt-3">
-                {/* Bloque del Autor con Avatar / Círculo blanco */}
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 rounded-full bg-white border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
-                    {post.author?.avatar ? (
+                    {post.author?.avatar_url ? (
                       <img 
-                        src={post.author.avatar} 
+                        src={post.author.avatar_url} 
                         alt={post.author.username || 'Avatar'} 
                         className="w-full h-full object-cover" 
                       />
@@ -146,9 +145,9 @@ export default function PostList({ onSelectPost }: PostListProps) {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <span>{post.votes} votos</span>
+                  <span>{post.votes_count} votos</span>
                   <span>•</span>
-                  <span>{post.repliesCount} respuestas</span>
+                  <span>{post.replies_count} respuestas</span>
                 </div>
               </div>
             </li>
