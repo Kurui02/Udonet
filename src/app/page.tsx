@@ -2,7 +2,7 @@ import { Module3Container } from "@module_3/exports";
 
 export default function Home() {
   return (
-    <main style={{ backgroundColor: '#13161b', minHeight: '100vh', padding: '10px' }}>
+    <main className="bg-[#13161b] min-h-screen p-2.5">
       <Module3Container />
     </main>
   );

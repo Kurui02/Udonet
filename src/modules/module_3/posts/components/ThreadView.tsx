@@ -64,7 +64,7 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+    <div className="relative w-full mb-2.5">
       <textarea
         value={value}
         onChange={handleChange}
@@ -73,38 +73,21 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        style={{ width: '100%', padding: '10px', backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '6px', color: '#fff', fontSize: '14px', resize: 'none' }}
+        className="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-md text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       
       {suggestions.length > 0 && (
-        <ul style={{
-          position: 'absolute',
-          top: '100%',
-          left: '10px',
-          backgroundColor: '#1f2937',
-          border: '1px solid #4b5563',
-          borderRadius: '8px',
-          listStyle: 'none',
-          padding: '4px 0',
-          margin: '4px 0 0 0',
-          width: '220px',
-          maxHeight: '160px',
-          overflowY: 'auto',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-          zIndex: 50
-        }}>
+        <ul className="absolute top-full left-2.5 bg-gray-800 border border-gray-600 rounded-lg list-none py-1 mt-1 w-56 max-h-40 overflow-y-auto shadow-xl z-50">
           {suggestions.map(user => (
             <li
               key={user}
               onClick={() => insertMention(user)}
-              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#374151')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              className="px-3 py-2 cursor-pointer text-xs text-gray-200 flex items-center gap-2 hover:bg-gray-700 transition-colors"
             >
-              <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#2563eb', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+              <div className="w-5.5 h-5.5 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
                 {user.charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontWeight: '500' }}>{user}</span>
+              <span className="font-medium">{user}</span>
             </li>
           ))}
         </ul>
@@ -140,7 +123,7 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
-  const indentation = Math.min(level *20, 80);
+  const indentation = Math.min(level * 20, 80);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,28 +141,28 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
   };
 
   return (
-        <div style={{ marginLeft: `${indentation}px`, borderLeft: '2px solid #374151', padding: '12px', marginTop: '12px', backgroundColor: '#18181b', borderRadius: '6px' }}>
-            <div style={{ fontSize: '12px', color: '#60a5fa', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-gray-700 p-3 mt-3 bg-zinc-900 rounded-md">
+            <div className="text-xs text-blue-400 mb-1.5 flex justify-between items-center">
                 <span><strong>{reply.author.username}</strong> • {new Date(reply.createdAt).toLocaleDateString()}</span>
             </div>
             
-            <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#e5e7eb', whiteSpace: 'pre-wrap' }}>
+            <p className="mb-2.5 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
               {renderTextWithMentions(reply.content)}
             </p>
 
             {/* BOTONES DE INTERACCIÓN */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#27272a', padding: '2px 6px', borderRadius: '4px', border: '1px solid #3f3f46' }}>
+            <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">
                     <button 
                         onClick={() => alert("Lógica de votos(Módulo 4)")} 
-                        style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontWeight: 'bold' }}
+                        className="bg-transparent border-0 text-zinc-400 hover:text-white cursor-pointer font-bold transition-colors"
                     >
                         ▲
                     </button>
-                    <span style={{ color: '#fff', fontWeight: 'bold', padding: '0 2px' }}>{reply.votes}</span>
+                    <span className="text-white font-bold px-0.5">{reply.votes}</span>
                     <button 
                         onClick={() => alert("Lógica de votos(Módulo 4)")} 
-                        style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontWeight: 'bold' }}
+                        className="bg-transparent border-0 text-zinc-400 hover:text-white cursor-pointer font-bold transition-colors"
                     >
                         ▼
                     </button>
@@ -187,7 +170,7 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
 
                 <button 
                     onClick={() => setShowReplyBox(!showReplyBox)} 
-                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '600' }}
+                    className="bg-transparent border-0 text-blue-500 hover:text-blue-400 cursor-pointer font-semibold transition-colors"
                 >
                     {showReplyBox ? 'Cancelar' : 'Responder'}
                 </button>
@@ -195,7 +178,7 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
 
             {/* CAJA DE TEXTO PARA RESPONDER*/}
             {showReplyBox && (
-                <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <form onSubmit={handleSubmitReply} className="mt-2.5 flex flex-col gap-2">
                     
                     <MentionTextarea
                       value={replyContent}
@@ -204,11 +187,11 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
                       rows={2}
                       disabled={isPending}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div className="flex justify-end">
                         <button 
                             type="submit" 
                             disabled={!replyContent.trim() || isPending}
-                            style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-bold transition-all cursor-pointer"
                         >
                             {isPending ? 'Enviando...' : 'Enviar Respuesta'}
                         </button>
@@ -218,7 +201,7 @@ function Comments({ reply,postId,onAddReply,level = 0 }: { reply: MockReply; pos
 
             {/* RECURSIVIDAD DE RESPUESTAS */}
             {reply.nestedReplies && reply.nestedReplies.length > 0 && (
-                <div style={{ marginTop: '8px' }}>
+                <div className="mt-2 space-y-2">
                     {reply.nestedReplies.map((child) => (
                         <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
                     ))}
@@ -402,17 +385,17 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
               {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#111827', padding: '4px 10px', borderRadius: '6px', border: '1px solid #374151' }}>
+            <div className="flex items-center gap-1.5 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-700">
               <button 
                 onClick={() => alert("Lógica de votos (Módulo 4)")} 
-                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                className="bg-transparent border-0 text-gray-400 hover:text-white cursor-pointer font-bold text-sm transition-colors"
               >
                 ▲
               </button>
-              <span style={{ fontWeight: 'bold', color: '#fff' }}>{thread.votes}</span>
+              <span className="font-bold text-white">{thread.votes}</span>
               <button 
                 onClick={() => alert("Lógica de votos (Módulo 4)")} 
-                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                className="bg-transparent border-0 text-gray-400 hover:text-white cursor-pointer font-bold text-sm transition-colors"
               >
                 ▼
               </button>
@@ -433,11 +416,11 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
               rows={3}
               disabled={isPending}
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="flex justify-end">
               <button 
                 type="submit" 
                 disabled={!mainReplyContent.trim() || isPending}
-                style={{ padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-xs font-bold transition-all cursor-pointer"
               >
                 {isPending ? 'Publicando...' : 'Comentar Hilo'}
               </button>
