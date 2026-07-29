@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { SupabasePostService } from '@module_3/posts/services/supabase-service';
+import { addReply } from '@module_3/posts/services/supabase-service';
 
 export async function addReplyAction(postId: string, parentId: string | null, content: string) {
     try {
@@ -9,8 +9,7 @@ export async function addReplyAction(postId: string, parentId: string | null, co
             return { success: false, error: "El contenido no puede estar vacío." };
         }
 
-        const service = SupabasePostService.getInstance();
-        const result = await service.addReply(postId,parentId,content);
+        const result = await addReply(postId, parentId, content);
 
         if (result.success) {
             const mentionRegex = /@([\w_]+)/g;

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
-import { UnifiedPost, DatabaseReply } from '@module_3/posts/services/types';
+import { UnifiedPost, DatabaseReply } from '@module_3/posts/services/supabase-service';
 
 interface ThreadViewProp {
   threadId: string;

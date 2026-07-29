@@ -1,169 +1,182 @@
-import { PostService, ActionResponse, UnifiedPost, DatabaseReply } from './types';
+import { Post, Reply, PostLink, User, Community } from '@/lib/types';
 import { getLinkMetadata } from '../actions/links';
 import { createClient } from '@/lib/db/server'; 
 
-export class SupabasePostService implements PostService {
-  private static instance: SupabasePostService | null = null;
+export interface ActionResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
-  private constructor() {}
+export type DatabaseUser = Partial<User> & { id: string; username: string; avatar_url?: string | null };
+export type DatabasePostLink = PostLink;
 
-  public static getInstance(): SupabasePostService {
-    if (!this.instance) {
-      this.instance = new SupabasePostService();
+export type DatabaseReply = Reply & {
+  author?: DatabaseUser; 
+  nestedReplies?: DatabaseReply[]; 
+};
+
+export type UnifiedPost = Omit<Post, 'status'> & {
+  status: 'open' | 'closed' | 'abierto' | 'cerrado';
+  author: DatabaseUser;
+  community?: Community;
+  community_name?: string;
+  tags: string[]; 
+  links: DatabasePostLink[];
+  replies: DatabaseReply[];
+  votes_count: number; 
+  replies_count: number;
+};
+
+function buildReplyTree(flatReplies: any[]): DatabaseReply[] {
+  const replyMap = new Map<string, DatabaseReply>();
+  const roots: DatabaseReply[] = [];
+
+  flatReplies.forEach(r => {
+    replyMap.set(r.id, { ...r, nestedReplies: [] });
+  });
+
+  flatReplies.forEach(r => {
+    const node = replyMap.get(r.id)!;
+    if (r.parent_id) {
+      const parent = replyMap.get(r.parent_id);
+      if (parent) parent.nestedReplies!.push(node);
+    } else {
+      roots.push(node);
     }
-    return this.instance;
+  });
+
+  return roots;
+}
+
+export async function getThread(id: string): Promise<UnifiedPost | null> {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      author:users(id, username, avatar_url),
+      communities(name),
+      links:post_links(*),
+      post_tags(tag:tags(name)),
+      replies(*, author:users(id, username, avatar_url))
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    console.error('Error en Supabase getThread:', error);
+    return null;
   }
 
-  async getThread(id: string): Promise<UnifiedPost | null> {
-    const supabase = await createClient();
-    
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users(id, username, avatar_url),
-        communities(name),
-        links:post_links(*),
-        post_tags(tag:tags(name)),
-        replies(*, author:users(id, username, avatar_url))
-      `)
-      .eq('id', id)
-      .single();
+  const formattedTags = data.post_tags?.map((pt: any) => pt.tag.name) || [];
 
-    if (error || !data) {
-      console.error('Error en Supabase getThread:', error);
-      return null;
-    }
+  const post: UnifiedPost = {
+    ...data,
+    community_name: data.communities?.name || 'General',
+    tags: formattedTags,
+    replies_count: data.replies?.length || 0,
+    votes_count: 0 // Conectar con módulo 4 
+  };
 
-    const formattedTags = data.post_tags?.map((pt: any) => pt.tag.name) || [];
+  post.replies = buildReplyTree(data.replies || []);
 
-    const post: UnifiedPost = {
-      ...data,
-      community_name: data.communities?.name || 'General',
-      tags: formattedTags,
-      replies_count: data.replies?.length || 0,
-      votes_count: 0 // Conectar con módulo 4 
-    };
+  return post;
+}
 
-    post.replies = this.buildReplyTree(data.replies || []);
+export async function createPost(formData: FormData): Promise<ActionResponse> {
+  const supabase = await createClient();
+  
+  // Obtener sesión del usuario (Autenticación real)
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
 
-    return post;
-  }
+  const title = formData.get("title") as string;
+  const content = formData.get("postText") as string;
+  const detectedUrl = formData.get("detectedUrl") as string;
+  const tagsInput = formData.get("tags") as string;
 
-  async createPost(formData: FormData): Promise<ActionResponse> {
-    const supabase = await createClient();
-    
-    // Obtener sesión del usuario (Autenticación real)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
+  const defaultCommunityId = formData.get("communityId") as string || "ID_DE_COMUNIDAD_POR_DEFECTO"; 
 
-    const title = formData.get("title") as string;
-    const content = formData.get("postText") as string;
-    const detectedUrl = formData.get("detectedUrl") as string;
-    const tagsInput = formData.get("tags") as string;
-
-    const defaultCommunityId = formData.get("communityId") as string || "ID_DE_COMUNIDAD_POR_DEFECTO"; 
-
-    const { data: newPost, error: postError } = await supabase
-      .from('posts')
-      .insert({
-        title,
-        content,
-        author_id: user.id,
-        community_id: defaultCommunityId,
-        status: 'open'
-      })
-      .select()
-      .single();
-
-    if (postError) {
-        console.error("Error insertando post:", postError);
-        return { success: false, error: 'Error al crear la publicación.' };
-    }
-
-    if (detectedUrl) {
-      await supabase.from('post_links').insert({
-        post_id: newPost.id,
-        url: detectedUrl
-      });
-    }
-
-    return { success: true, message: '¡Publicación creada exitosamente en la Base de Datos!' };
-  }
-
-  async search(term: string, community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
-    const supabase = await createClient();
-    
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users(id, username),
-        communities(name),
-        post_tags(tag:tags(name))
-      `)
-      .eq('is_hidden', false);
-
-    if (term) {
-      query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
-
-    if (error || !data) return [];
-
-    return data.map((post: any) => ({
-      ...post,
-      community_name: post.communities?.name || 'General',
-      tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
-      replies: [],
-      links: []
-    }));
-  }
-
-  async getPosts(filter?: string): Promise<UnifiedPost[]> {
-    return this.search("", undefined, undefined, filter);
-  }
-
-  async addReply(postId: string, parentId: string | null, content: string): Promise<ActionResponse> {
-    const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
-
-    const { error } = await supabase.from('replies').insert({
+  const { data: newPost, error: postError } = await supabase
+    .from('posts')
+    .insert({
+      title,
       content,
-      post_id: postId,
-      parent_id: parentId,
-      user_id: user.id
-    });
+      author_id: user.id,
+      community_id: defaultCommunityId,
+      status: 'open'
+    })
+    .select()
+    .single();
 
-    if (error) {
-        console.error("Error insertando respuesta:", error);
-        return { success: false, error: 'No se pudo guardar la respuesta.' };
-    }
-    
-    return { success: true, message: 'Respuesta guardada con éxito.' };
+  if (postError) {
+      console.error("Error insertando post:", postError);
+      return { success: false, error: 'Error al crear la publicación.' };
   }
 
-  private buildReplyTree(flatReplies: any[]): DatabaseReply[] {
-    const replyMap = new Map<string, DatabaseReply>();
-    const roots: DatabaseReply[] = [];
-
-    flatReplies.forEach(r => {
-      replyMap.set(r.id, { ...r, nestedReplies: [] });
+  if (detectedUrl) {
+    await supabase.from('post_links').insert({
+      post_id: newPost.id,
+      url: detectedUrl
     });
-
-    flatReplies.forEach(r => {
-      const node = replyMap.get(r.id)!;
-      if (r.parent_id) {
-        const parent = replyMap.get(r.parent_id);
-        if (parent) parent.nestedReplies!.push(node);
-      } else {
-        roots.push(node);
-      }
-    });
-
-    return roots;
   }
+
+  return { success: true, message: '¡Publicación creada exitosamente en la Base de Datos!' };
+}
+
+export async function search(term: string, community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
+  const supabase = await createClient();
+  
+  let query = supabase
+    .from('posts')
+    .select(`
+      *,
+      author:users(id, username),
+      communities(name),
+      post_tags(tag:tags(name))
+    `)
+    .eq('is_hidden', false);
+
+  if (term) {
+    query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
+
+  if (error || !data) return [];
+
+  return data.map((post: any) => ({
+    ...post,
+    community_name: post.communities?.name || 'General',
+    tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
+    replies: [],
+    links: []
+  }));
+}
+
+export async function getPosts(filter?: string): Promise<UnifiedPost[]> {
+  return search("", undefined, undefined, filter);
+}
+
+export async function addReply(postId: string, parentId: string | null, content: string): Promise<ActionResponse> {
+  const supabase = await createClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
+
+  const { error } = await supabase.from('replies').insert({
+    content,
+    post_id: postId,
+    parent_id: parentId,
+    user_id: user.id
+  });
+
+  if (error) {
+      console.error("Error insertando respuesta:", error);
+      return { success: false, error: 'No se pudo guardar la respuesta.' };
+  }
+  
+  return { success: true, message: 'Respuesta guardada con éxito.' };
 }

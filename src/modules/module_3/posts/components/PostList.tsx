@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
-import { UnifiedPost } from '@module_3/posts/services/types';
+import { UnifiedPost } from '@module_3/posts/services/supabase-service';
 
 interface PostListProps {
   onSelectPost: (id: string) => void;
