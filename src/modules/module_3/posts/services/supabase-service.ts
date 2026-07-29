@@ -2,6 +2,20 @@ import { PostService, ActionResponse, UnifiedPost, DatabaseReply } from './types
 import { getLinkMetadata } from '../actions/links';
 import { createClient } from '@/lib/db/server'; 
 
+const MOCK_USER = {
+  id: '00000000-0000-0000-0000-000000000001',
+  email: 'test@test.com',
+  username: 'testuser',
+  avatar_url: null,
+  bio: null,
+  is_public: true,
+  role: 'regular',
+  reputation: 150,
+  created_at: new Date().toISOString(),
+};
+
+const DEFAULT_MOCK_COMMUNITY_ID = "00000000-0000-0000-0000-000000000002";
+
 export class SupabasePostService implements PostService {
   private static instance: SupabasePostService | null = null;
 
@@ -55,30 +69,34 @@ export class SupabasePostService implements PostService {
     
     // Obtener sesión del usuario (Autenticación real)
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
+    
+    const userId = user?.id || MOCK_USER.id;
 
     const title = formData.get("title") as string;
     const content = formData.get("postText") as string;
     const detectedUrl = formData.get("detectedUrl") as string;
     const tagsInput = formData.get("tags") as string;
 
-    const defaultCommunityId = formData.get("communityId") as string || "ID_DE_COMUNIDAD_POR_DEFECTO"; 
+    let communityId = formData.get("communityId") as string;
+    if (!communityId || communityId === "General") {
+      communityId = DEFAULT_MOCK_COMMUNITY_ID;
+    }
 
     const { data: newPost, error: postError } = await supabase
       .from('posts')
       .insert({
         title,
         content,
-        author_id: user.id,
-        community_id: defaultCommunityId,
+        author_id: userId,
+        community_id: communityId,
         status: 'open'
       })
       .select()
       .single();
 
-    if (postError) {
-        console.error("Error insertando post:", postError);
-        return { success: false, error: 'Error al crear la publicación.' };
+      if (postError) {
+        console.error("Error REAL insertando post:", postError);
+        return { success: false, error: 'Error BD: ' + postError.message };
     }
 
     if (detectedUrl) {
@@ -129,19 +147,20 @@ export class SupabasePostService implements PostService {
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
+    
+    const userId = user?.id || MOCK_USER.id;
 
     const { error } = await supabase.from('replies').insert({
       content,
       post_id: postId,
       parent_id: parentId,
-      user_id: user.id
+      user_id: userId
     });
 
     if (error) {
-        console.error("Error insertando respuesta:", error);
-        return { success: false, error: 'No se pudo guardar la respuesta.' };
-    }
+      console.error("Error REAL insertando respuesta:", error);
+      return { success: false, error: 'Error BD: ' + error.message };
+  }
     
     return { success: true, message: 'Respuesta guardada con éxito.' };
   }

@@ -9,16 +9,21 @@ export interface CommunityOption {
   name: string;
 }
 
+const MOCK_COMMUNITIES: CommunityOption[] = [
+  { id: "00000000-0000-0000-0000-000000000002", name: "General" },
+  { id: "00000000-0000-0000-0000-000000000003", name: "Computacion" },
+  { id: "00000000-0000-0000-0000-000000000004", name: "Prueba 3" }
+];
+
 export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[]> {
   try {
     //  Aqui modulo 2(comunidades que el usuario sigue)
+    // las funciones de getCommunity del modulo 2 (creo que asi se llamaba)
    
-    return [
-      { id: "General", name: "General" }
-    ];
+    return MOCK_COMMUNITIES;
   } catch (error) {
     console.error("Error al obtener las comunidades del usuario:", error);
-    return [{ id: "General", name: "General" }];
+    return MOCK_COMMUNITIES;
   }
 }
 

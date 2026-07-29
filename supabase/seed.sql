@@ -18,3 +18,4 @@ INSERT INTO communities (name, slug, description, parent_id, created_by) VALUES
   ('Tecnología en Electrónica', 'tecnologia-en-electronica', 'Comunidad de la carrera de Tecnología en Electrónica', NULL, NULL),
   ('Tecnología en Fabricación Mecánica', 'tecnologia-en-fabricacion-mecanica', 'Comunidad de la carrera de Tecnología en Fabricación Mecánica', NULL, NULL),
   ('Temas Generales', 'temas-generales', 'Comunidad abierta para todos los usuarios', NULL, NULL);
+

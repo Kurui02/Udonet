@@ -23,8 +23,7 @@ export async function addReplyAction(postId: string, parentId: string | null, co
 
             if (mentionedUsers.length > 0) {
                 
-                // import { notifyUsers } from '@module_4/notifications/api';
-                // await notifyUsers(mentionedUsers, postId);
+                // import y await de notificaciones de las menciones Modulo 4
                 console.log("Usuarios mencionados detectados (Pendiente Módulo 4):", mentionedUsers);
             }
 
