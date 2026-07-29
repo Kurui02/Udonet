@@ -13,7 +13,7 @@ function Module3Content() {
 
   return (
     <div className="max-w-[1000px] mx-auto bg-[#121212] border border-gray-850 min-h-[90vh] rounded-xl p-6 space-y-6 shadow-xl text-white">
-      {selectedThread ? ( 
+      {selectedThread ? (
         <ThreadView threadId={selectedThread} onBack={closeThread} />
       ) : (
         <>
@@ -21,7 +21,7 @@ function Module3Content() {
             <div className="flex-1">
               <SearchBox />
             </div>
-            
+
             <div className="flex items-center">
               <button
                 onClick={() => openCreatePost()}
@@ -31,7 +31,7 @@ function Module3Content() {
               </button>
             </div>
           </div>
-          
+
           <PostList onSelectPost={openThread} />
         </>
       )}

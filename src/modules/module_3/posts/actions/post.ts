@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { SupabasePostService } from "@module_3/posts/services/supabase-service";
-import { UnifiedPost } from "@module_3/posts/services/types";
+import { createPost, getPosts, UnifiedPost } from "@module_3/posts/services/supabase-service";
 
 export interface CommunityOption {
   id: string;
@@ -29,8 +28,7 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
 
 export async function createPostAction(formData: FormData){
   try {
-      const service = SupabasePostService.getInstance();
-      const result = await service.createPost(formData);
+      const result = await createPost(formData);
 
       if (result.success) {
         revalidatePath("/");
@@ -44,8 +42,7 @@ export async function createPostAction(formData: FormData){
 
 export async function getPostsAction(filter?: string): Promise<UnifiedPost[]> {
   try {
-    const service = SupabasePostService.getInstance();
-    return await service.getPosts(filter);
+    return await getPosts(filter);
   } catch (error) {
     console.error("Error en getPostsAction:", error);
     return [];

@@ -7,10 +7,7 @@ export { default as Module3Container } from './components/ModuleContainer';
 export { searchPosts, SearchInput, SearchBox } from './search/exports';
 
 // Componentes, datos y tipos expuestos para posts/hilos
+export type { UnifiedPost, DatabaseReply, DatabaseUser, ActionResponse } from '@module_3/posts/services/supabase-service';
+export { CreatePostProvider, useCreatePost, PostList, ThreadView } from './posts/exports';
 
-export type { UnifiedPost, DatabaseReply, DatabaseUser, ActionResponse } from '@module_3/posts/services/types';
-
-// Servicios y Factoría de Datos
-export type { PostService } from './posts/services/types';
-export { CreatePostProvider, useCreatePost } from './posts/exports';
 
