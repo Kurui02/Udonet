@@ -2,6 +2,7 @@ import { Post, Reply, PostLink, User, Community } from '@/lib/types';
 import { getLinkMetadata } from '../actions/links';
 import { createClient } from '@/lib/db/server'; 
 
+//(eliminar al pasar a la base de datos real)
 const MOCK_USER = {
   id: '00000000-0000-0000-0000-000000000001',
   email: 'test@test.com',
@@ -13,8 +14,14 @@ const MOCK_USER = {
   reputation: 150,
   created_at: new Date().toISOString(),
 };
-
+//(eliminar al pasar a la base de datos real)
 const DEFAULT_MOCK_COMMUNITY_ID = "00000000-0000-0000-0000-000000000002";
+//(eliminar al pasar a la base de datos real)
+const MOCK_COMMUNITIES_MAP: Record<string, { name: string; slug: string }> = {
+  "00000000-0000-0000-0000-000000000002": { name: "General", slug: "general" },
+  "00000000-0000-0000-0000-000000000003": { name: "Computacion", slug: "computacion" },
+  "00000000-0000-0000-0000-000000000004": { name: "Prueba 3", slug: "prueba-3" },
+};
 
 export interface ActionResponse {
   success: boolean;
@@ -104,22 +111,46 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
   
   // Obtener sesión del usuario (Autenticación real)
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
+  //if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
+
+  const userId = user?.id || MOCK_USER.id;
 
   const title = formData.get("title") as string;
   const content = formData.get("postText") as string;
   const detectedUrl = formData.get("detectedUrl") as string;
   const tagsInput = formData.get("tags") as string;
 
-  const defaultCommunityId = formData.get("communityId") as string || "ID_DE_COMUNIDAD_POR_DEFECTO"; 
+  const communityId = formData.get("communityId") as string || formData.get("community_id") as string || DEFAULT_MOCK_COMMUNITY_ID;
+  // (eliminar al pasar a la base de datos real)
+  if (!user) {
+    await supabase.from('users').upsert({
+      id: MOCK_USER.id,
+      email: MOCK_USER.email,
+      username: MOCK_USER.username,
+      is_public: MOCK_USER.is_public,
+      role: MOCK_USER.role,
+      reputation: MOCK_USER.reputation
+    }, { onConflict: 'id' });
+  
+    // pruebas mocks para verificar que funcione la select de comunidades al crear (eliminar al pasar a la base de datos real)
+    const communityInfo = MOCK_COMMUNITIES_MAP[communityId] || { name: 'General', slug: 'general' };
+    
+    await supabase.from('communities').upsert({
+    id: communityId,
+    name: communityInfo.name,
+    slug: communityInfo.slug,
+    description: `Comunidad ${communityInfo.name} para pruebas`,
+    created_by: userId
+  }, { onConflict: 'id' });
+  }
 
   const { data: newPost, error: postError } = await supabase
     .from('posts')
     .insert({
       title,
       content,
-      author_id: user.id,
-      community_id: defaultCommunityId,
+      author_id: userId,
+      community_id: communityId,
       status: 'open'
     })
     .select()
@@ -130,10 +161,46 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
       return { success: false, error: 'Error al crear la publicación.' };
   }
 
+  if (tagsInput) {
+    const tagsArray = tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+
+    for (const tagName of tagsArray) {
+      let {data: existingTag} = await supabase.from('tags').select('id').eq('name',tagName).single();
+      let tagId = existingTag?.id;
+
+      if (!tagId) {
+        const { data: newTag } = await supabase.from('tags').insert({ name: tagName }).select('id').single();
+        tagId = newTag?.id;
+      }
+
+       if (tagId) {
+        await supabase.from('post_tags').insert({ post_id: newPost.id, tag_id: tagId });
+      }
+    }
+  }
+
   if (detectedUrl) {
+    let linkTitle = null;
+    let linkDesc = null;
+    let linkImg = null;
+
+    try {
+      const metaRes = await getLinkMetadata(detectedUrl) as any;
+      if (metaRes.success === 1 && metaRes.meta) {
+        linkTitle = metaRes.meta.title;
+        linkDesc = metaRes.meta.description;
+        linkImg = metaRes.meta.image?.url;
+      }
+    } catch (e) {
+      console.error("Error obteniendo metadata del enlace en el servidor:", e);
+    }
+
     await supabase.from('post_links').insert({
       post_id: newPost.id,
-      url: detectedUrl
+      url: detectedUrl,
+      title: linkTitle,
+      description: linkDesc,
+      image_url: linkImg
     });
   }
 
@@ -149,7 +216,8 @@ export async function search(term: string, community?: string, tags?: string[], 
       *,
       author:users(id, username),
       communities(name),
-      post_tags(tag:tags(name))
+      post_tags(tag:tags(name)),
+      replies(id)
     `)
     .eq('is_hidden', false);
 
@@ -161,13 +229,26 @@ export async function search(term: string, community?: string, tags?: string[], 
 
   if (error || !data) return [];
 
-  return data.map((post: any) => ({
+  let formattedData = data.map((post: any) => ({
+    ...post,
     ...post,
     community_name: post.communities?.name || 'General',
     tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
     replies: [],
-    links: []
+    links: [],
+    replies_count: post.replies ? post.replies.length : 0,
+    votes_count: 0 // En 0 hasta tener los datos del modulo 4
   }));
+
+  if (filter === 'respuestas') {
+    formattedData.sort((a, b) => b.replies_count - a.replies_count);
+  } else if (filter === 'votados') {
+    formattedData.sort((a, b) => b.votes_count - a.votes_count);
+  } else {
+    formattedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  return formattedData.slice(0, 20);
 }
 
 export async function getPosts(filter?: string): Promise<UnifiedPost[]> {
@@ -178,13 +259,26 @@ export async function addReply(postId: string, parentId: string | null, content:
   const supabase = await createClient();
   
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
+  //if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
+
+  const userId = user?.id || MOCK_USER.id;
+
+  if (!user) {
+    await supabase.from('users').upsert({
+      id: MOCK_USER.id,
+      email: MOCK_USER.email,
+      username: MOCK_USER.username,
+      is_public: MOCK_USER.is_public,
+      role: MOCK_USER.role,
+      reputation: MOCK_USER.reputation
+    }, { onConflict: 'id' });
+  }
 
   const { error } = await supabase.from('replies').insert({
     content,
     post_id: postId,
     parent_id: parentId,
-    user_id: user.id
+    user_id: userId
   });
 
   if (error) {
