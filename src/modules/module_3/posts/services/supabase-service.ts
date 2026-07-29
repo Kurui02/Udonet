@@ -207,9 +207,11 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
   return { success: true, message: '¡Publicación creada exitosamente en la Base de Datos!' };
 }
 
-export async function search(term: string, community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
+export async function search(term: string = '', community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
   const supabase = await createClient();
   
+  const cleanTerm = term?.startsWith('#') ? term.slice(1).trim() : term?.trim() || '';
+
   let query = supabase
     .from('posts')
     .select(`
@@ -221,16 +223,39 @@ export async function search(term: string, community?: string, tags?: string[], 
     `)
     .eq('is_hidden', false);
 
-  if (term) {
-    query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
+  if (cleanTerm) {
+    // Buscar si hay tags con ese nombre
+    const { data: matchedTags } = await supabase
+      .from('tags')
+      .select('id')
+      .ilike('name', `%${cleanTerm}%`);
+
+    const matchedTagIds = matchedTags?.map((t: any) => t.id) || [];
+    let matchedPostIdsFromTags: string[] = [];
+
+    if (matchedTagIds.length > 0) {
+      const { data: ptData } = await supabase
+        .from('post_tags')
+        .select('post_id')
+        .in('tag_id', matchedTagIds);
+      
+      matchedPostIdsFromTags = ptData?.map((pt: any) => pt.post_id) || [];
+    }
+
+    // Coincidir por título
+    if (matchedPostIdsFromTags.length > 0) {
+      const idList = matchedPostIdsFromTags.join(',');
+      query = query.or(`title.ilike.%${cleanTerm}%,content.ilike.%${cleanTerm}%,id.in.(${idList})`);
+    } else {
+      query = query.or(`title.ilike.%${cleanTerm}%,content.ilike.%${cleanTerm}%`);
+    }
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false }).limit(20);
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(50);
 
   if (error || !data) return [];
 
-  let formattedData = data.map((post: any) => ({
-    ...post,
+  let formattedData: UnifiedPost[] = data.map((post: any) => ({
     ...post,
     community_name: post.communities?.name || 'General',
     tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
@@ -240,7 +265,8 @@ export async function search(term: string, community?: string, tags?: string[], 
     votes_count: 0 // En 0 hasta tener los datos del modulo 4
   }));
 
-  if (filter === 'respuestas') {
+  // Ordenar por el filtro seleccionado
+  if (filter === 'respondidos') {
     formattedData.sort((a, b) => b.replies_count - a.replies_count);
   } else if (filter === 'votados') {
     formattedData.sort((a, b) => b.votes_count - a.votes_count);

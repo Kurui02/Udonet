@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
+import { getPostsAction } from '@module_3/posts/actions/post';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
 
 interface PostListProps {
@@ -15,7 +16,7 @@ export default function PostList({ onSelectPost }: PostListProps) {
   const [loading, setLoading] = useState(true);
 
   const query = searchParams.get('q') || '';
-  const filter = searchParams.get('filter') || 'recientes';
+  const filter = searchParams.get('filter') || 'respondidos';
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -23,7 +24,7 @@ export default function PostList({ onSelectPost }: PostListProps) {
       try {
         let results: UnifiedPost[] = [];
         if (query.trim() === '') {
-          results = [];
+          results = await getPostsAction(filter);
         } else {
           const tags = query.includes(',') 
             ? query.split(',').map(t => t.trim().toLowerCase()) 

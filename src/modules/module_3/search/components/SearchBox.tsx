@@ -11,21 +11,21 @@ export default function SearchBox() {
 
   // Inicializar estados desde los parámetros de búsqueda de la URL
   const queryParam = searchParams.get('q') || '';
-  const filterParam = searchParams.get('filter') || 'popular';
+  const filterParam = searchParams.get('filter') || 'respondidos';
 
   const [searchTerm, setSearchTerm] = useState(queryParam);
   const [filter, setFilter] = useState(filterParam);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  // Opciones de Temas y Filtros Populares
+  // Opciones de Temas y Filtros
   const topicOptions = [
     { id: 'Sistemas', name: 'Sistemas' },
     { id: 'Computación', name: 'Computación' },
     { id: 'Básico', name: 'Básico' },
   ];
 
-  const popularOptions = [
-    { id: 'popular', name: 'Más Populares' },
+  const filterOptions = [
+    { id: 'respondidos', name: 'Más Respondidos' },
     { id: 'recientes', name: 'Más Recientes' },
     { id: 'votados', name: 'Más Votados' },
   ];
@@ -37,7 +37,7 @@ export default function SearchBox() {
   // Sincronizar estados con los parámetros URL cuando cambian externamente
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
-    setFilter(searchParams.get('filter') || 'popular');
+    setFilter(searchParams.get('filter') || 'respondidos');
   }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -104,14 +104,14 @@ export default function SearchBox() {
           />
         </div>
 
-        {/* Selector Desplegable de Popularidad */}
+        {/* Selector Desplegable de Filtro */}
         <div className="relative">
           <PopoverSelect
-            label="Popular:"
-            options={popularOptions}
+            label="Filtro:"
+            options={filterOptions}
             selectedValue={filter}
             onSelect={(val) => handleFilterChange(val)}
-            titleHeader="Popular"
+            titleHeader="Filtro"
             popoverWidth="w-48"
             originTop={false}
             buttonClassName={filterButtonClass}
