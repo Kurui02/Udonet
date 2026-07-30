@@ -4,8 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
 import { UnifiedPost, DatabaseReply } from '@module_3/posts/services/supabase-service';
-import UserBadge from '@/modules/module_4/reputation/components/UserBadge';
-import VoteManager from '@/modules/module_4/votes/components/VoteManager';
+import UserAvatar from '../../components/UserAvatar';
 
 interface ThreadViewProp {
   threadId: string;
@@ -57,14 +56,14 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
     const beforeAt = value.slice(0, mentionQuery.start - 1);
     const endOfQuery = mentionQuery.start + mentionQuery.text.length;
     const afterCursor = value.slice(endOfQuery);
-
+    
     const newValue = `${beforeAt}@${username} ${afterCursor}`;
     onChange(newValue);
     setSuggestions([]);
   };
 
   return (
-    <div className="relative w-full mb-2.5">
+    <div className="relative w-full mb-3">
       <textarea
         value={value}
         onChange={handleChange}
@@ -73,20 +72,21 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-md text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full p-4 bg-lite-white border border-white-gray rounded-[20px] text-main-black font-candal font-normal text-p placeholder:font-candal placeholder:font-normal placeholder:text-alpha-black resize-none focus:outline-none border-0"
       />
-
+      
       {suggestions.length > 0 && (
-        <ul className="absolute top-full left-2.5 bg-gray-800 border border-gray-600 rounded-lg list-none py-1 mt-1 w-56 max-h-40 overflow-y-auto shadow-xl z-50">
+        <ul className="absolute top-full left-2 bg-pure-white border border-white-gray rounded-[14px] list-none py-1.5 mt-1 w-56 max-h-40 overflow-y-auto shadow-md z-50 font-candal font-normal">
           {suggestions.map(user => (
             <li
-              key={user} onClick={() => insertMention(user)}
-              className="px-3 py-2 cursor-pointer text-xs text-gray-200 flex items-center gap-2 hover:bg-gray-700 transition-colors"
+              key={user} 
+              onClick={() => insertMention(user)}
+              className="px-3.5 py-2 cursor-pointer text-tiny text-main-black flex items-center gap-2 hover:bg-lite-white transition-colors"
             >
-              <div className="w-5.5 h-5.5 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+              <div className="w-6 h-6 rounded-full bg-main-blue/20 flex items-center justify-center text-extra-tiny font-candal text-main-blue shrink-0">
                 {user.charAt(0).toUpperCase()}
               </div>
-              <span className="font-medium">{user}</span>
+              <span>{user}</span>
             </li>
           ))}
         </ul>
@@ -102,12 +102,12 @@ const renderTextWithMentions = (text: string | null) => {
 
   return parts.map((part, index) => {
     if (part.match(mentionRegex)) {
-      const username = part.substring(1);
+      const username = part.substring(1); 
       return (
-        <span
-          key={index}
-          className="text-blue-400 font-semibold cursor-pointer hover:underline"
-          onClick={() => alert(`Esto redirigiría al perfil del usuario: ${username}`)}
+        <span 
+          key={index} 
+          className="text-regular-blue font-open-sans font-extrabold cursor-pointer hover:underline"
+          onClick={() => alert(`Perfil del usuario: ${username}`)}
           title={`Ver perfil de ${username}`}
         >
           {part}
@@ -122,7 +122,7 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
-  const indentation = Math.min(level * 20, 80);
+  const indentation = Math.min(level * 24, 96);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,41 +140,35 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
   };
 
   return (
-    <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-gray-700 p-3 mt-3 bg-zinc-900 rounded-md">
-      <div className="text-xs text-blue-400 mb-1.5 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span><strong>{reply.author?.username || 'Anónimo'}</strong> • {new Date(reply.created_at).toLocaleDateString()}</span>
-          {reply.author && (
-            <UserBadge reputation={reply.author.reputation || 0} role={reply.author.role || 'regular'} />
-          )}
-        </div>
+    <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-white-gray p-4 mt-3 bg-lite-white rounded-[20px] shadow-sm">
+      <div className="font-candal font-normal text-tiny text-gray-custom mb-2 flex justify-between items-center">
+        <span><strong className="text-main-black font-candal font-normal">{reply.author?.username || 'Anónimo'}</strong> • {new Date(reply.created_at).toLocaleDateString()}</span>
       </div>
-
-      <p className="mb-2.5 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+      
+      <p className="mb-3 font-candal font-normal text-p text-lite-black whitespace-pre-wrap leading-relaxed">
         {renderTextWithMentions(reply.content)}
       </p>
 
-      {/* BOTONES DE INTERACCIÓN */}
-      <div className="flex items-center gap-3 text-xs">
-        <VoteManager
-          replyId={reply.id}
-          initialVoteCount={reply.vote_count || 0}
-          currentSessionUserId={"CURRENT_USER_ID"} /* TODO: Reemplazar con ID de sesión real */
-          replyAuthorId={reply.author?.id || ""}
-        />
+      {/* Botones de Interacción */}
+      <div className="flex items-center gap-4 text-tiny font-candal font-normal">
+        <div className="flex items-center gap-1.5 bg-pure-white px-3 py-1 rounded-full border border-white-gray">
+          <button type="button" onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-regular-blue hover:text-dark-main-blue cursor-pointer font-bold transition-colors">↑</button>
+          <span className="text-main-black font-candal font-normal px-0.5">{reply.vote_count || 0}</span>
+          <button type="button" onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-gray-custom hover:text-main-black cursor-pointer font-bold transition-colors">↓</button>
+        </div>
 
-        <button
-          onClick={() => setShowReplyBox(!showReplyBox)}
-          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '600' }}
+        <button 
+          type="button"
+          onClick={() => setShowReplyBox(!showReplyBox)} 
+          className="text-regular-blue hover:text-dark-main-blue font-candal font-normal cursor-pointer transition-colors bg-transparent border-0"
         >
           {showReplyBox ? 'Cancelar' : 'Responder'}
         </button>
       </div>
 
-      {/* CAJA DE TEXTO PARA RESPONDER*/}
+      {/* Caja para Responder */}
       {showReplyBox && (
-        <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
+        <form onSubmit={handleSubmitReply} className="mt-3 flex flex-col gap-2">
           <MentionTextarea
             value={replyContent}
             onChange={setReplyContent}
@@ -182,11 +176,11 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
             rows={2}
             disabled={isPending}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="submit"
+          <div className="flex justify-end">
+            <button 
+              type="submit" 
               disabled={!replyContent.trim() || isPending}
-              style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+              className="px-4 py-2 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white border-0 rounded-full text-tiny font-candal font-normal cursor-pointer transition-all"
             >
               {isPending ? 'Enviando...' : 'Enviar Respuesta'}
             </button>
@@ -194,9 +188,9 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
         </form>
       )}
 
-      {/* RECURSIVIDAD DE RESPUESTAS */}
+      {/* Recursividad del Árbol N-Arbol de Respuestas */}
       {reply.nestedReplies && reply.nestedReplies.length > 0 && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-3 space-y-2">
           {reply.nestedReplies.map((child) => (
             <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
           ))}
@@ -243,72 +237,109 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-3">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm text-gray-400">Cargando publicación...</p>
+        <div className="w-8 h-8 border-4 border-regular-blue border-t-transparent rounded-full animate-spin"></div>
+        <p className="font-candal font-normal text-p text-gray-custom">Cargando publicación...</p>
       </div>
     );
   }
 
   if (!thread) {
     return (
-      <div className="p-8 border border-dashed border-gray-800 rounded-xl text-center space-y-4">
-        <button onClick={onBack} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm transition">
+      <div className="p-10 bg-pure-white border border-white-gray rounded-[30px] text-center space-y-4 shadow-sm">
+        <button 
+          type="button"
+          onClick={onBack} 
+          className="px-5 py-2.5 bg-lite-white hover:bg-white-gray text-main-black font-candal font-normal text-p rounded-full transition-all border border-white-gray cursor-pointer"
+        >
           ← Volver Atrás
         </button>
-        <p className="text-gray-400 text-sm">El Hilo no existe o fue eliminado.</p>
+        <p className="font-candal font-normal text-p text-gray-custom">La publicación no existe o fue eliminada.</p>
       </div>
     );
   }
 
-  const statusColor =
-    thread.status === 'closed'
-      ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-400'
-      : thread.is_pinned
-        ? 'bg-amber-950/50 border border-amber-800 text-amber-400'
-        : 'bg-blue-950/50 border border-blue-800 text-blue-400';
-
   const firstLink = thread.links && thread.links.length > 0 ? thread.links[0] : null;
+  const authorName = thread.author?.username || 'Anónimo';
+  const authorRole = thread.author?.role || 'Profesor';
+  const communityBreadcrumb = `F / ${thread.community_name || 'DCYS'}`;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 text-white">
-      <button onClick={onBack} className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 text-xs font-semibold rounded-lg transition-all">
-        ← Volver Atrás
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Botón de Regresar */}
+      <button 
+        type="button"
+        onClick={onBack} 
+        className="px-5 py-2.5 bg-pure-white hover:bg-lite-white text-main-black font-candal font-normal text-p rounded-full border border-white-gray transition-all cursor-pointer shadow-sm flex items-center gap-2"
+      >
+        ← Volver a publicaciones
       </button>
 
-      <div className="p-6 bg-[#181818] border border-gray-800 rounded-xl space-y-4 shadow-xl">
-        <div className="flex items-center space-x-3">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            F / {thread.community_name || 'General'}
-          </span>
-          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColor}`}>
-            {thread.status === 'closed' ? 'Resuelto' : 'Abierto'}
-          </span>
+      {/* Tarjeta Principal de la Publicación */}
+      <div className="p-6 sm:p-8 bg-pure-white border border-white-gray rounded-[30px] space-y-5 shadow-sm">
+        {/* Cabecera del Autor y Comunidad */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar avatarUrl={thread.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
+            <div className="h-[50px] flex flex-col justify-between py-[1px]">
+              <h4 className="font-candal font-normal text-h4 text-main-black leading-none m-0 p-0">
+                {authorName}
+              </h4>
+              <h5 className="font-candal font-normal text-h5 text-alpha-black leading-none m-0 p-0">
+                {thread.author?.bio || 'Carrera'}
+              </h5>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {thread.is_pinned && (
+              <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full font-candal font-normal text-extra-tiny bg-deep-orange/15 text-deep-orange border border-deep-orange/30">
+                📌 Fijado
+              </span>
+            )}
+            <span className="font-candal font-normal text-tiny text-gray-custom shrink-0">
+              {communityBreadcrumb}
+            </span>
+          </div>
         </div>
 
-        <h1 className="text-xl font-bold text-white">{thread.title}</h1>
-        <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
-          {renderTextWithMentions(thread.content)}
-        </p>
+        {/* Título y Contenido */}
+        <h1 className="font-candal font-normal text-h3 text-main-black leading-tight">{thread.title}</h1>
+        
+        {thread.content && (
+          <p className="font-candal font-normal text-p text-lite-black whitespace-pre-wrap leading-relaxed">
+            {renderTextWithMentions(thread.content)}
+          </p>
+        )}
 
-        {/* ESTRUCTURA DEL ENLACE DE BASE DE DATOS */}
+        {/* Previsualizador de Enlace */}
         {firstLink && (
           <div className="mt-4">
-            <a href={firstLink.url} target="_blank" rel="noopener noreferrer" className="flex items-center overflow-hidden bg-[#121212] rounded-xl border border-gray-800 hover:border-blue-500/50 transition group p-2 gap-3.5">
+            <a 
+              href={firstLink.url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center overflow-hidden bg-lite-white rounded-[20px] border border-white-gray hover:border-regular-blue/50 transition group p-3 gap-4"
+            >
               {firstLink.image_url && (
-                <div className="relative w-28 h-24 sm:w-32 sm:h-24 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-900">
-                  <img src={firstLink.image_url} alt={firstLink.title || 'Vista previa'} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                <div className="relative w-28 h-24 sm:w-32 sm:h-24 flex-shrink-0 overflow-hidden rounded-[14px] bg-pure-white border border-white-gray">
+                  <img 
+                    src={firstLink.image_url} 
+                    alt={firstLink.title || 'Vista previa'} 
+                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
+                  />
                 </div>
               )}
-              <div className="flex-1 min-w-0 pr-2 space-y-1">
-                <div className="flex items-center space-x-1.5 text-xs text-blue-400 font-medium">
+              <div className="flex-1 min-w-0 pr-2 space-y-1 font-candal font-normal">
+                <div className="flex items-center space-x-1.5 text-tiny text-regular-blue">
                   <span>🔗</span>
                   <span className="truncate">{(() => { try { return new URL(firstLink.url).hostname; } catch { return firstLink.url; } })()}</span>
                 </div>
-                <h3 className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors line-clamp-1">
+                <h3 className="font-candal font-normal text-p text-main-black group-hover:text-regular-blue transition-colors line-clamp-1">
                   {firstLink.title || firstLink.url}
                 </h3>
                 {firstLink.description && (
-                  <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                  <p className="text-tiny text-gray-custom line-clamp-2 leading-relaxed">
                     {firstLink.description}
                   </p>
                 )}
@@ -317,49 +348,55 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
           </div>
         )}
 
+        {/* Tags */}
         {thread.tags && thread.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-2">
             {thread.tags.map((tag) => (
-              <span key={tag} className="px-2.5 py-1 bg-[#222] border border-gray-800 rounded-md text-xs text-gray-400">
+              <span 
+                key={tag} 
+                className="px-3 py-1 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-open-sans font-extrabold text-tiny rounded-full transition-colors"
+              >
                 #{tag}
               </span>
             ))}
           </div>
         )}
 
-        <div className="text-xs text-gray-400 border-t border-gray-850 pt-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div>Autor: <strong className="text-gray-200">{thread.author?.username || 'Anónimo'}</strong></div>
-            {thread.author && (
-              <UserBadge reputation={thread.author.reputation || 0} role={thread.author.role || 'regular'} />
-            )}
+        {/* Pie de la Publicación */}
+        <div className="font-candal font-normal text-p text-gray-custom border-t border-white-gray pt-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 text-main-black">
+              <span className="text-regular-blue font-bold">↑</span> {thread.votes_count || 0} votos
+            </span>
           </div>
-          <div className="flex items-center space-x-3">
-            <button onClick={() => setShowMainReplyBox(!showMainReplyBox)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-xs">
-              {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
-            </button>
-            <VoteManager
-              replyId={thread.id} // Usando el ID del post principal
-              initialVoteCount={thread.votes_count || 0}
-              currentSessionUserId={"CURRENT_USER_ID"} /* TODO: Reemplazar con ID de sesión real */
-              replyAuthorId={thread.author?.id || ""}
-            />
-          </div>
+
+          <button 
+            type="button"
+            onClick={() => setShowMainReplyBox(!showMainReplyBox)} 
+            className="px-5 py-2.5 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-candal font-normal text-p rounded-full transition-all cursor-pointer border-0 shadow-sm"
+          >
+            {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
+          </button>
         </div>
       </div>
-
+      
+      {/* Caja para Comentar al Hilo Principal */}
       {showMainReplyBox && (
-        <div className="p-4 bg-[#1f2937] rounded-xl border border-gray-700 shadow-md">
-          <h3 className="text-sm font-semibold mb-2">Escribe tu respuesta al hilo principal</h3>
+        <div className="p-6 bg-pure-white rounded-[30px] border border-white-gray shadow-sm space-y-3 font-candal font-normal">
+          <h3 className="text-p font-candal font-normal text-main-black">Escribe tu respuesta al hilo principal</h3>
           <form onSubmit={handleMainReplySubmit}>
-            <MentionTextarea
-              value={mainReplyContent} onChange={setMainReplyContent} placeholder="Escribe lo que piensas sobre este hilo..." rows={3} disabled={isPending}
+            <MentionTextarea 
+              value={mainReplyContent} 
+              onChange={setMainReplyContent} 
+              placeholder="Escribe lo que piensas sobre este hilo..." 
+              rows={3} 
+              disabled={isPending}
             />
             <div className="flex justify-end">
-              <button
-                type="submit"
+              <button 
+                type="submit" 
                 disabled={!mainReplyContent.trim() || isPending}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-xs font-bold transition-all cursor-pointer"
+                className="px-5 py-2.5 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white rounded-full text-p font-candal font-normal transition-all cursor-pointer border-0 shadow-sm"
               >
                 {isPending ? 'Publicando...' : 'Comentar Hilo'}
               </button>
@@ -368,13 +405,14 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
         </div>
       )}
 
-      <div className="space-y-4 pt-4">
-        <h3 className="text-lg font-bold text-white border-b border-gray-850 pb-2">
+      {/* Lista de Respuestas Anidadas (N-Árbol) */}
+      <div className="space-y-4 pt-4 font-candal font-normal">
+        <h3 className="text-h4 font-candal font-normal text-main-black border-b border-white-gray pb-3">
           Respuestas ({thread.replies_count || 0})
         </h3>
         <div>
           {!thread.replies || thread.replies.length === 0 ? (
-            <p className="text-sm text-gray-500 italic">No hay respuestas aún.</p>
+            <p className="text-p font-candal font-normal text-gray-custom italic py-4">No hay respuestas aún. ¡Sé el primero en comentar!</p>
           ) : (
             thread.replies.map((reply) => (
               <Comments key={reply.id} reply={reply} postId={thread.id} onAddReply={loadData} />

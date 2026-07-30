@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPostAction, getUserJoinedCommunitiesAction, CommunityOption } from "@module_3/posts/actions/post";
 import { getLinkMetadata } from "@module_3/posts/actions/links";
 import PopoverSelect from '../../components/PopoverSelect';
+import UserAvatar from '../../components/UserAvatar';
 import { CloseIcon } from '../../components/icons';
 
 interface LinkMetadata {
@@ -167,15 +168,7 @@ export default function CreatePostModal({
           <div className="flex items-center space-x-3 pt-1">
 
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-[16px] bg-white-gray border border-white-gray overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
-              {userAvatar ? (
-                <img src={userAvatar} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-main-blue/20 flex items-center justify-center font-candal text-main-blue font-normal text-base">
-                  UDO
-                </div>
-              )}
-            </div>
+            <UserAvatar avatarUrl={userAvatar} username={userName} size="w-12 h-12" />
 
             {/* Nombre del Usuario */}
             <div className="flex flex-col space-y-1">

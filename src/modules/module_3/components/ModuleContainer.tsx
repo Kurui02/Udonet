@@ -12,20 +12,21 @@ function Module3Content() {
   const { open: openCreatePost } = useCreatePost();
 
   return (
-    <div className="max-w-[1000px] mx-auto bg-[#121212] border border-gray-850 min-h-[90vh] rounded-xl p-6 space-y-6 shadow-xl text-white">
+    <div className="max-w-[1000px] mx-auto space-y-6">
       {selectedThread ? (
         <ThreadView threadId={selectedThread} onBack={closeThread} />
       ) : (
-        <>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-850 pb-5">
+        <div className="bg-lite-white p-6 sm:p-8 rounded-[35px] border border-white-gray shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
               <SearchBox />
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center shrink-0">
               <button
+                type="button"
                 onClick={() => openCreatePost()}
-                className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md"
+                className="w-full sm:w-auto px-6 py-3 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-candal font-normal text-p rounded-full transition-all shadow-md active:scale-95 cursor-pointer border-0"
               >
                 + Crear Publicación
               </button>
@@ -33,7 +34,7 @@ function Module3Content() {
           </div>
 
           <PostList onSelectPost={openThread} />
-        </>
+        </div>
       )}
     </div>
   );
@@ -42,7 +43,7 @@ function Module3Content() {
 export default function Module3Container() {
   return (
     <CreatePostProvider>
-      <Suspense fallback={<div className="max-w-[1000px] mx-auto bg-[#121212] border border-gray-850 min-h-[90vh] rounded-xl p-12 text-center text-gray-400 text-sm shadow-xl">Cargando módulo...</div>}>
+      <Suspense fallback={<div className="max-w-[1000px] mx-auto p-12 text-center font-candal font-normal text-gray-custom text-p">Cargando módulo...</div>}>
         <Module3Content />
       </Suspense>
     </CreatePostProvider>
