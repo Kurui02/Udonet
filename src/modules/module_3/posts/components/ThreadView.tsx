@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
+import VoteManager from '@module_4/votes/components/VoteManager';
+import UserBadge from '@module_4/reputation/components/UserBadge';
 import { UnifiedPost, DatabaseReply } from '@module_3/posts/services/supabase-service';
 import UserAvatar from '../../components/UserAvatar';
+import Toast from '../../components/Toast';
+import { ChevronLeftIcon } from '../../components/icons';
+import { PostCard } from './PostList';
 
 interface ThreadViewProp {
   threadId: string;
@@ -17,99 +23,86 @@ interface MentionTextareaProps {
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
-  disabled?: boolean;
   rows?: number;
+  disabled?: boolean;
 }
 
-function MentionTextarea({ value, onChange, placeholder, disabled, rows }: MentionTextareaProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [mentionQuery, setMentionQuery] = useState({ start: -1, text: '' });
+function MentionTextarea({ value, onChange, placeholder, rows = 3, disabled }: MentionTextareaProps) {
+  const [showMentions, setShowMentions] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const [cursorPos, setCursorPos] = useState(0);
 
-  const checkMention = (text: string, cursor: number) => {
-    const textBeforeCursor = text.slice(0, cursor);
-    const match = textBeforeCursor.match(/(?:^|\s)@(\w*)$/);
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const pos = e.target.selectionStart;
+    onChange(val);
+    setCursorPos(pos);
 
-    if (match) {
-      const search = match[1].toLowerCase();
-      const filtered = MockUsers.filter(u => u.toLowerCase().includes(search));
-      setSuggestions(filtered);
-      setMentionQuery({ start: cursor - match[1].length, text: match[1] });
-    } else {
-      setSuggestions([]);
+    const textBeforeCursor = val.slice(0, pos);
+    const lastAtPos = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtPos !== -1) {
+      const charAfterAt = textBeforeCursor.slice(lastAtPos + 1);
+      if (!/\s/.test(charAfterAt)) {
+        setFilterText(charAfterAt.toLowerCase());
+        setShowMentions(true);
+        return;
+      }
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
-    checkMention(e.target.value, e.target.selectionStart);
-  };
-
-  const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    checkMention(value, (e.target as HTMLTextAreaElement).selectionStart);
-  };
-
-  const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
-    checkMention(value, (e.target as HTMLTextAreaElement).selectionStart);
+    setShowMentions(false);
   };
 
   const insertMention = (username: string) => {
-    const beforeAt = value.slice(0, mentionQuery.start - 1);
-    const endOfQuery = mentionQuery.start + mentionQuery.text.length;
-    const afterCursor = value.slice(endOfQuery);
-    
-    const newValue = `${beforeAt}@${username} ${afterCursor}`;
-    onChange(newValue);
-    setSuggestions([]);
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const lastAtPos = textBeforeCursor.lastIndexOf('@');
+    const textAfterCursor = value.slice(cursorPos);
+
+    const newText = value.slice(0, lastAtPos) + `@${username} ` + textAfterCursor;
+    onChange(newText);
+    setShowMentions(false);
   };
 
+  const filteredUsers = MockUsers.filter(u => u.toLowerCase().includes(filterText));
+
   return (
-    <div className="relative w-full mb-3">
+    <div className="relative w-full">
       <textarea
         value={value}
-        onChange={handleChange}
-        onKeyUp={handleKeyUp}
-        onClick={handleClick}
+        onChange={handleInputChange}
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className="w-full p-4 bg-lite-white border border-white-gray rounded-[20px] text-main-black font-candal font-normal text-p placeholder:font-candal placeholder:font-normal placeholder:text-alpha-black resize-none focus:outline-none border-0"
+        className="w-full p-3 rounded-[18px] bg-lite-white border border-white-gray font-candal font-normal text-p text-main-black placeholder:text-alpha-black focus:outline-none focus:border-regular-blue transition-colors resize-none"
       />
-      
-      {suggestions.length > 0 && (
-        <ul className="absolute top-full left-2 bg-pure-white border border-white-gray rounded-[14px] list-none py-1.5 mt-1 w-56 max-h-40 overflow-y-auto shadow-md z-50 font-candal font-normal">
-          {suggestions.map(user => (
-            <li
-              key={user} 
+      {showMentions && filteredUsers.length > 0 && (
+        <div className="absolute left-0 bottom-full mb-1 w-48 bg-pure-white border border-white-gray rounded-[16px] shadow-lg z-50 overflow-hidden font-candal font-normal">
+          <div className="px-3 py-1.5 text-extra-tiny text-alpha-black border-b border-white-gray">
+            Mencionar usuario...
+          </div>
+          {filteredUsers.map(user => (
+            <button
+              key={user}
+              type="button"
               onClick={() => insertMention(user)}
-              className="px-3.5 py-2 cursor-pointer text-tiny text-main-black flex items-center gap-2 hover:bg-lite-white transition-colors"
+              className="w-full text-left px-3 py-2 text-tiny text-main-black hover:bg-regular-blue hover:text-pure-white transition-colors cursor-pointer border-0 bg-transparent"
             >
-              <div className="w-6 h-6 rounded-full bg-main-blue/20 flex items-center justify-center text-extra-tiny font-candal text-main-blue shrink-0">
-                {user.charAt(0).toUpperCase()}
-              </div>
-              <span>{user}</span>
-            </li>
+              @{user}
+            </button>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
 }
 
-const renderTextWithMentions = (text: string | null) => {
-  if (!text) return null;
+const renderTextWithMentions = (text: string) => {
   const mentionRegex = /(@[\w_]+)/g;
   const parts = text.split(mentionRegex);
 
   return parts.map((part, index) => {
-    if (part.match(mentionRegex)) {
-      const username = part.substring(1); 
+    if (part.startsWith('@')) {
       return (
-        <span 
-          key={index} 
-          className="text-regular-blue font-open-sans font-extrabold cursor-pointer hover:underline"
-          onClick={() => alert(`Perfil del usuario: ${username}`)}
-          title={`Ver perfil de ${username}`}
-        >
+        <span key={index} className="text-regular-blue font-open-sans font-extrabold cursor-pointer hover:underline">
           {part}
         </span>
       );
@@ -118,11 +111,18 @@ const renderTextWithMentions = (text: string | null) => {
   });
 };
 
-function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseReply; postId: string; onAddReply: () => void; level?: number }) {
+interface ReplyItemProps {
+  reply: DatabaseReply;
+  postId: string;
+  onAddReply: () => void;
+  onShowToast: (msg: string, type: 'success' | 'error') => void;
+  parentAuthorName?: string;
+}
+
+function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }: ReplyItemProps) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
-  const indentation = Math.min(level * 24, 96);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,30 +132,45 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
       if (res.success) {
         setReplyContent('');
         setShowReplyBox(false);
+        onShowToast('¡Respuesta guardada con éxito!', 'success');
         onAddReply();
       } else {
-        alert(res.error);
+        onShowToast(res.error || 'Error al guardar la respuesta.', 'error');
       }
     });
   };
 
   return (
-    <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-white-gray p-4 mt-3 bg-lite-white rounded-[20px] shadow-sm">
-      <div className="font-candal font-normal text-tiny text-gray-custom mb-2 flex justify-between items-center">
-        <span><strong className="text-main-black font-candal font-normal">{reply.author?.username || 'Anónimo'}</strong> • {new Date(reply.created_at).toLocaleDateString()}</span>
-      </div>
-      
-      <p className="mb-3 font-candal font-normal text-p text-lite-black whitespace-pre-wrap leading-relaxed">
-        {renderTextWithMentions(reply.content)}
-      </p>
+    <div className="bg-pure-white rounded-[24px] p-5 font-candal font-normal min-w-0 transition-all border-0">
+      {/* Cabecera del Autor (usuario • fecha en una misma línea) */}
+      <div className="flex items-center gap-2 mb-2 font-candal font-normal text-tiny text-alpha-black flex-wrap">
+        <UserAvatar avatarUrl={reply.author?.avatar_url} username={reply.author?.username || 'Anónimo'} size="w-7 h-7" />
+        <strong className="text-main-black font-candal font-normal text-p">
+          {reply.author?.username || 'Anónimo'}
+        </strong>
+        <span>•</span>
+        <span>{new Date(reply.created_at).toLocaleDateString()}</span>
 
-      {/* Botones de Interacción */}
-      <div className="flex items-center gap-4 text-tiny font-candal font-normal">
-        <div className="flex items-center gap-1.5 bg-pure-white px-3 py-1 rounded-full border border-white-gray">
-          <button type="button" onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-regular-blue hover:text-dark-main-blue cursor-pointer font-bold transition-colors">↑</button>
-          <span className="text-main-black font-candal font-normal px-0.5">{reply.vote_count || 0}</span>
-          <button type="button" onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-gray-custom hover:text-main-black cursor-pointer font-bold transition-colors">↓</button>
-        </div>
+        {parentAuthorName && (
+          <span className="text-extra-tiny font-candal font-normal text-alpha-black ml-1">
+            Respondiendo a <span className="text-regular-blue font-open-sans font-extrabold">@{parentAuthorName}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Contenido con break-words obligatorio */}
+      <div className="my-3 font-candal font-normal text-p text-lite-black whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
+        {renderTextWithMentions(reply.content)}
+      </div>
+
+      {/* Acciones */}
+      <div className="flex items-center gap-4 text-tiny font-candal font-normal pt-1">
+        <VoteManager 
+          replyId={reply.id}
+          initialVoteCount={reply.vote_count || 0}
+          currentSessionUserId="00000000-0000-0000-0000-000000000001"
+          replyAuthorId={reply.user_id || reply.author?.id || ''}
+        />
 
         <button 
           type="button"
@@ -168,7 +183,7 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
 
       {/* Caja para Responder */}
       {showReplyBox && (
-        <form onSubmit={handleSubmitReply} className="mt-3 flex flex-col gap-2">
+        <form onSubmit={handleSubmitReply} className="mt-4 pt-3 border-t border-white-gray flex flex-col gap-2">
           <MentionTextarea
             value={replyContent}
             onChange={setReplyContent}
@@ -176,11 +191,18 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
             rows={2}
             disabled={isPending}
           />
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button 
+              type="button"
+              onClick={() => setShowReplyBox(false)}
+              className="px-3.5 py-1.5 bg-lite-white hover:bg-white-gray text-main-black rounded-full text-tiny font-candal font-normal cursor-pointer border-0"
+            >
+              Cancelar
+            </button>
             <button 
               type="submit" 
               disabled={!replyContent.trim() || isPending}
-              className="px-4 py-2 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white border-0 rounded-full text-tiny font-candal font-normal cursor-pointer transition-all"
+              className="px-4 py-1.5 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white border-0 rounded-full text-tiny font-candal font-normal cursor-pointer transition-all"
             >
               {isPending ? 'Enviando...' : 'Enviar Respuesta'}
             </button>
@@ -188,11 +210,18 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
         </form>
       )}
 
-      {/* Recursividad del Árbol N-Arbol de Respuestas */}
+      {/* Respuestas Hijas (Rediseño Estilo Threads/Twitter) */}
       {reply.nestedReplies && reply.nestedReplies.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-4 pl-3 sm:pl-4 border-l-2 border-regular-blue/30 space-y-3">
           {reply.nestedReplies.map((child) => (
-            <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
+            <ReplyItem
+              key={child.id}
+              reply={child}
+              postId={postId}
+              onAddReply={onAddReply}
+              onShowToast={onShowToast}
+              parentAuthorName={reply.author?.username || 'Anónimo'}
+            />
           ))}
         </div>
       )}
@@ -201,12 +230,19 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
 }
 
 export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
+  const router = useRouter();
   const [thread, setThread] = useState<UnifiedPost | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [showMainReplyBox, setShowMainReplyBox] = useState(false);
   const [mainReplyContent, setMainReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
+
+  const handleTagClick = (tag: string) => {
+    const cleanTag = tag.replace('#', '');
+    router.push(`/?q=${encodeURIComponent(cleanTag)}`);
+  };
 
   const loadData = async () => {
     const data = await getThread(threadId);
@@ -227,9 +263,10 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
       if (res.success) {
         setMainReplyContent('');
         setShowMainReplyBox(false);
+        setToast({ message: '¡Respuesta guardada con éxito!', type: 'success' });
         loadData();
       } else {
-        alert(res.error);
+        setToast({ message: res.error || 'Error al guardar la respuesta.', type: 'error' });
       }
     });
   };
@@ -249,11 +286,11 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
         <button 
           type="button"
           onClick={onBack} 
-          className="px-5 py-2.5 bg-lite-white hover:bg-white-gray text-main-black font-candal font-normal text-p rounded-full transition-all border border-white-gray cursor-pointer"
+          className="px-4 py-2 bg-regular-blue text-pure-white rounded-full font-candal font-normal text-tiny cursor-pointer border-0"
         >
-          ← Volver Atrás
+          ← Volver
         </button>
-        <p className="font-candal font-normal text-p text-gray-custom">La publicación no existe o fue eliminada.</p>
+        <p className="font-candal font-normal text-p text-gray-custom">No se encontró la publicación especificada.</p>
       </div>
     );
   }
@@ -264,161 +301,92 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
   const communityBreadcrumb = `F / ${thread.community_name || 'DCYS'}`;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Botón de Regresar */}
+    <div className="max-w-4xl mx-auto space-y-6 relative">
+      {/* Toast Notificación Elegante */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Botón de Regresar (Volver + Chevron Left + Hover Azul Regular) */}
       <button 
         type="button"
         onClick={onBack} 
-        className="px-5 py-2.5 bg-pure-white hover:bg-lite-white text-main-black font-candal font-normal text-p rounded-full border border-white-gray transition-all cursor-pointer shadow-sm flex items-center gap-2"
+        className="px-5 py-2.5 bg-pure-white hover:bg-regular-blue text-main-black hover:text-pure-white font-candal font-normal text-p rounded-full border-0 transition-all cursor-pointer flex items-center gap-2 group"
       >
-        ← Volver a publicaciones
+        <ChevronLeftIcon className="w-5 h-5 text-main-black group-hover:text-pure-white group-hover:-translate-x-1 transition-all" />
+        <span>Volver</span>
       </button>
 
-      {/* Tarjeta Principal de la Publicación */}
-      <div className="p-6 sm:p-8 bg-pure-white border border-white-gray rounded-[30px] space-y-5 shadow-sm">
-        {/* Cabecera del Autor y Comunidad */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <UserAvatar avatarUrl={thread.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
-            <div className="h-[50px] flex flex-col justify-between py-[1px]">
-              <h4 className="font-candal font-normal text-h4 text-main-black leading-none m-0 p-0">
-                {authorName}
-              </h4>
-              <h5 className="font-candal font-normal text-h5 text-alpha-black leading-none m-0 p-0">
-                {thread.author?.bio || 'Carrera'}
-              </h5>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {thread.is_pinned && (
-              <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full font-candal font-normal text-extra-tiny bg-deep-orange/15 text-deep-orange border border-deep-orange/30">
-                📌 Fijado
-              </span>
-            )}
-            <span className="font-candal font-normal text-tiny text-gray-custom shrink-0">
-              {communityBreadcrumb}
-            </span>
-          </div>
-        </div>
-
-        {/* Título y Contenido */}
-        <h1 className="font-candal font-normal text-h3 text-main-black leading-tight">{thread.title}</h1>
-        
-        {thread.content && (
-          <p className="font-candal font-normal text-p text-lite-black whitespace-pre-wrap leading-relaxed">
-            {renderTextWithMentions(thread.content)}
-          </p>
-        )}
-
-        {/* Previsualizador de Enlace */}
-        {firstLink && (
-          <div className="mt-4">
-            <a 
-              href={firstLink.url} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center overflow-hidden bg-lite-white rounded-[20px] border border-white-gray hover:border-regular-blue/50 transition group p-3 gap-4"
-            >
-              {firstLink.image_url && (
-                <div className="relative w-28 h-24 sm:w-32 sm:h-24 flex-shrink-0 overflow-hidden rounded-[14px] bg-pure-white border border-white-gray">
-                  <img 
-                    src={firstLink.image_url} 
-                    alt={firstLink.title || 'Vista previa'} 
-                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
-                  />
-                </div>
-              )}
-              <div className="flex-1 min-w-0 pr-2 space-y-1 font-candal font-normal">
-                <div className="flex items-center space-x-1.5 text-tiny text-regular-blue">
-                  <span>🔗</span>
-                  <span className="truncate">{(() => { try { return new URL(firstLink.url).hostname; } catch { return firstLink.url; } })()}</span>
-                </div>
-                <h3 className="font-candal font-normal text-p text-main-black group-hover:text-regular-blue transition-colors line-clamp-1">
-                  {firstLink.title || firstLink.url}
-                </h3>
-                {firstLink.description && (
-                  <p className="text-tiny text-gray-custom line-clamp-2 leading-relaxed">
-                    {firstLink.description}
-                  </p>
-                )}
-              </div>
-            </a>
-          </div>
-        )}
-
-        {/* Tags */}
-        {thread.tags && thread.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            {thread.tags.map((tag) => (
-              <span 
-                key={tag} 
-                className="px-3 py-1 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-open-sans font-extrabold text-tiny rounded-full transition-colors"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Pie de la Publicación */}
-        <div className="font-candal font-normal text-p text-gray-custom border-t border-white-gray pt-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-main-black">
-              <span className="text-regular-blue font-bold">↑</span> {thread.votes_count || 0} votos
-            </span>
-          </div>
-
-          <button 
-            type="button"
-            onClick={() => setShowMainReplyBox(!showMainReplyBox)} 
-            className="px-5 py-2.5 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-candal font-normal text-p rounded-full transition-all cursor-pointer border-0 shadow-sm"
-          >
-            {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
-          </button>
-        </div>
-      </div>
+      {/* Tarjeta Principal Reutilizable en Modo ThreadView */}
+      <PostCard
+        post={thread}
+        isThreadView={true}
+        onMainReplyClick={() => setShowMainReplyBox(!showMainReplyBox)}
+        showMainReplyBox={showMainReplyBox}
+        onTagClick={() => onBack()}
+      />
       
       {/* Caja para Comentar al Hilo Principal */}
       {showMainReplyBox && (
-        <div className="p-6 bg-pure-white rounded-[30px] border border-white-gray shadow-sm space-y-3 font-candal font-normal">
+        <div className="p-6 bg-pure-white rounded-[30px] border-0 space-y-3 font-candal font-normal">
           <h3 className="text-p font-candal font-normal text-main-black">Escribe tu respuesta al hilo principal</h3>
           <form onSubmit={handleMainReplySubmit}>
-            <MentionTextarea 
-              value={mainReplyContent} 
-              onChange={setMainReplyContent} 
-              placeholder="Escribe lo que piensas sobre este hilo..." 
-              rows={3} 
+            <MentionTextarea
+              value={mainReplyContent}
+              onChange={setMainReplyContent}
+              placeholder="¿Qué opinas al respecto? Usa @ para mencionar..."
+              rows={3}
               disabled={isPending}
             />
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3 mt-3">
+              <button 
+                type="button"
+                onClick={() => setShowMainReplyBox(false)}
+                className="px-5 py-2 bg-lite-white hover:bg-white-gray text-main-black font-candal font-normal rounded-full text-tiny cursor-pointer border-0 transition-colors"
+              >
+                Cancelar
+              </button>
               <button 
                 type="submit" 
                 disabled={!mainReplyContent.trim() || isPending}
-                className="px-5 py-2.5 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white rounded-full text-p font-candal font-normal transition-all cursor-pointer border-0 shadow-sm"
+                className="px-5 py-2 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white font-candal font-normal rounded-full text-tiny cursor-pointer border-0 transition-all"
               >
-                {isPending ? 'Publicando...' : 'Comentar Hilo'}
+                {isPending ? 'Publicando...' : 'Publicar Respuesta'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Lista de Respuestas Anidadas (N-Árbol) */}
+      {/* Sección del Árbol de Respuestas */}
       <div className="space-y-4 pt-4 font-candal font-normal">
-        <h3 className="text-h4 font-candal font-normal text-main-black border-b border-white-gray pb-3">
-          Respuestas ({thread.replies_count || 0})
-        </h3>
-        <div>
-          {!thread.replies || thread.replies.length === 0 ? (
-            <p className="text-p font-candal font-normal text-gray-custom italic py-4">No hay respuestas aún. ¡Sé el primero en comentar!</p>
-          ) : (
-            thread.replies.map((reply) => (
-              <Comments key={reply.id} reply={reply} postId={thread.id} onAddReply={loadData} />
-            ))
-          )}
-        </div>
+        <h2 className="text-h4 font-candal font-normal text-main-black">
+          Respuestas ({thread.replies ? thread.replies.length : 0})
+        </h2>
+
+        {thread.replies && thread.replies.length > 0 ? (
+          <div className="space-y-3">
+            {thread.replies.map((reply) => (
+              <ReplyItem 
+                key={reply.id} 
+                reply={reply} 
+                postId={thread.id} 
+                onAddReply={loadData}
+                onShowToast={(msg, type) => setToast({ message: msg, type })}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 bg-pure-white rounded-[24px] border-0 text-center">
+            <p className="font-candal font-normal text-p text-gray-custom">
+              Aún no hay respuestas en esta publicación. ¡Sé el primero en responder!
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

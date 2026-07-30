@@ -2,27 +2,6 @@ import { Post, Reply, PostLink, User, Community } from '@/lib/types';
 import { getLinkMetadata } from '../actions/links';
 import { createClient } from '@/lib/db/server';
 
-//(eliminar al pasar a la base de datos real)
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'test@test.com',
-  username: 'testuser',
-  avatar_url: null,
-  bio: null,
-  is_public: true,
-  role: 'regular',
-  reputation: 150,
-  created_at: new Date().toISOString(),
-};
-//(eliminar al pasar a la base de datos real)
-const DEFAULT_MOCK_COMMUNITY_ID = "00000000-0000-0000-0000-000000000002";
-//(eliminar al pasar a la base de datos real)
-const MOCK_COMMUNITIES_MAP: Record<string, { name: string; slug: string }> = {
-  "00000000-0000-0000-0000-000000000002": { name: "General", slug: "general" },
-  "00000000-0000-0000-0000-000000000003": { name: "Computacion", slug: "computacion" },
-  "00000000-0000-0000-0000-000000000004": { name: "Prueba 3", slug: "prueba-3" },
-};
-
 export interface ActionResponse {
   success: boolean;
   message?: string;
@@ -49,6 +28,7 @@ export type UnifiedPost = Omit<Post, 'status'> & {
   replies_count: number;
 };
 
+// Construye el árbol jerárquico de respuestas N-ario en O(n) indexando con Map O(1)
 function buildReplyTree(flatReplies: any[]): DatabaseReply[] {
   const replyMap = new Map<string, DatabaseReply>();
   const roots: DatabaseReply[] = [];
@@ -98,7 +78,7 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
     community_name: data.communities?.name || 'General',
     tags: formattedTags,
     replies_count: data.replies?.length || 0,
-    votes_count: 0 // Conectar con módulo 4 
+    votes_count: 0
   };
 
   post.replies = buildReplyTree(data.replies || []);
@@ -109,10 +89,13 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
 export async function createPost(formData: FormData | any): Promise<ActionResponse> {
   const supabase = await createClient();
 
-  // Obtener sesión del usuario (Autenticación real)
+  // Obtener usuario autenticado de la sesión
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: 'Debes iniciar sesión para publicar.' };
+  }
 
-  const userId = user?.id || MOCK_USER.id;
+  const userId = user.id;
 
   let title: string;
   let content: string;
@@ -125,35 +108,21 @@ export async function createPost(formData: FormData | any): Promise<ActionRespon
     content = (formData.get("postText") as string) || (formData.get("content") as string) || "";
     detectedUrl = formData.get("detectedUrl") as string;
     tagsInput = formData.get("tags") as string;
-    communityId = (formData.get("communityId") as string) || (formData.get("community_id") as string) || DEFAULT_MOCK_COMMUNITY_ID;
+    communityId = (formData.get("communityId") as string) || (formData.get("community_id") as string) || "";
   } else {
     title = formData.title;
     content = formData.content || "";
     detectedUrl = formData.links && formData.links.length > 0 ? formData.links[0] : "";
     tagsInput = formData.tags ? formData.tags.join(",") : "";
-    communityId = formData.communityId || DEFAULT_MOCK_COMMUNITY_ID;
+    communityId = formData.communityId || formData.community_id || "";
   }
-  // (eliminar al pasar a la base de datos real)
-  if (!user) {
-    await supabase.from('users').upsert({
-      id: MOCK_USER.id,
-      email: MOCK_USER.email,
-      username: MOCK_USER.username,
-      is_public: MOCK_USER.is_public,
-      role: MOCK_USER.role,
-      reputation: MOCK_USER.reputation
-    }, { onConflict: 'id' });
 
-    // pruebas mocks para verificar que funcione la select de comunidades al crear (eliminar al pasar a la base de datos real)
-    const communityInfo = MOCK_COMMUNITIES_MAP[communityId] || { name: 'General', slug: 'general' };
-
-    await supabase.from('communities').upsert({
-      id: communityId,
-      name: communityInfo.name,
-      slug: communityInfo.slug,
-      description: `Comunidad ${communityInfo.name} para pruebas`,
-      created_by: userId
-    }, { onConflict: 'id' });
+  // Si no se especifica comunidad, consultar la primera de la BD
+  if (!communityId) {
+    const { data: defaultComm } = await supabase.from('communities').select('id').limit(1).single();
+    if (defaultComm) {
+      communityId = defaultComm.id;
+    }
   }
 
   const { data: newPost, error: postError } = await supabase
@@ -162,7 +131,7 @@ export async function createPost(formData: FormData | any): Promise<ActionRespon
       title,
       content,
       author_id: userId,
-      community_id: communityId,
+      community_id: communityId || null,
       status: 'open'
     })
     .select()
@@ -216,7 +185,7 @@ export async function createPost(formData: FormData | any): Promise<ActionRespon
     });
   }
 
-  return { success: true, message: '¡Publicación creada exitosamente en la Base de Datos!' };
+  return { success: true, message: 'Publicación creada con éxito.' };
 }
 
 export async function search(term: string = '', community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
@@ -230,13 +199,13 @@ export async function search(term: string = '', community?: string, tags?: strin
       *,
       author:users(id, username, avatar_url, reputation, role),
       communities(name),
+      links:post_links(*),
       post_tags(tag:tags(name)),
       replies(id)
     `)
     .eq('is_hidden', false);
 
   if (cleanTerm) {
-    // Buscar si hay tags con ese nombre
     const { data: matchedTags } = await supabase
       .from('tags')
       .select('id')
@@ -254,7 +223,6 @@ export async function search(term: string = '', community?: string, tags?: strin
       matchedPostIdsFromTags = ptData?.map((pt: any) => pt.post_id) || [];
     }
 
-    // Coincidir por título
     if (matchedPostIdsFromTags.length > 0) {
       const idList = matchedPostIdsFromTags.join(',');
       query = query.or(`title.ilike.%${cleanTerm}%,content.ilike.%${cleanTerm}%,id.in.(${idList})`);
@@ -272,12 +240,11 @@ export async function search(term: string = '', community?: string, tags?: strin
     community_name: post.communities?.name || 'General',
     tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
     replies: [],
-    links: [],
+    links: post.links || [],
     replies_count: post.replies ? post.replies.length : 0,
-    votes_count: 0 // En 0 hasta tener los datos del modulo 4
+    votes_count: 0
   }));
 
-  // Ordenar por el filtro seleccionado
   if (filter === 'respondidos') {
     formattedData.sort((a, b) => b.replies_count - a.replies_count);
   } else if (filter === 'votados') {
@@ -297,20 +264,11 @@ export async function addReply(postId: string, parentId: string | null, content:
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  //if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
-
-  const userId = user?.id || MOCK_USER.id;
-
   if (!user) {
-    await supabase.from('users').upsert({
-      id: MOCK_USER.id,
-      email: MOCK_USER.email,
-      username: MOCK_USER.username,
-      is_public: MOCK_USER.is_public,
-      role: MOCK_USER.role,
-      reputation: MOCK_USER.reputation
-    }, { onConflict: 'id' });
+    return { success: false, error: 'Debes iniciar sesión para responder.' };
   }
+
+  const userId = user.id;
 
   const { error } = await supabase.from('replies').insert({
     content,
@@ -336,6 +294,7 @@ export async function getPostsByUser(userId: string): Promise<UnifiedPost[]> {
       *,
       author:users(id, username, avatar_url, reputation, role),
       communities(name),
+      links:post_links(*),
       post_tags(tag:tags(name)),
       replies(id)
     `)
@@ -350,7 +309,7 @@ export async function getPostsByUser(userId: string): Promise<UnifiedPost[]> {
     community_name: post.communities?.name || 'General',
     tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
     replies: [],
-    links: [],
+    links: post.links || [],
     replies_count: post.replies ? post.replies.length : 0,
     votes_count: 0
   }));

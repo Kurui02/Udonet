@@ -1,67 +1,81 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
 import { getPostsAction } from '@module_3/posts/actions/post';
+import { addReplyAction } from '@module_3/posts/actions/reply';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
-import UserBadge from '@/modules/module_4/reputation/components/UserBadge';
+import VoteManager from '@module_4/votes/components/VoteManager';
+import UserBadge from '@module_4/reputation/components/UserBadge';
 import UserAvatar from '../../components/UserAvatar';
-import { 
-  UpvoteIcon, 
-  DownvoteIcon, 
-  PaperPlaneIcon, 
-  ChevronRightIcon 
+import Toast from '../../components/Toast';
+import {
+  PaperPlaneIcon,
+  ChevronRightIcon
 } from '../../components/icons';
 import { formatDate } from '@/lib/utils/formatDate';
 
-interface PostListProps {
-  onSelectPost: (id: string) => void;
+export interface PostCardProps {
+  post: UnifiedPost;
+  onSelectPost?: (id: string) => void;
+  isThreadView?: boolean;
+  onMainReplyClick?: () => void;
+  showMainReplyBox?: boolean;
+  onTagClick?: (tag: string) => void;
 }
 
-function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id: string) => void }) {
+export function PostCard({
+  post,
+  onSelectPost,
+  isThreadView = false,
+  onMainReplyClick,
+  showMainReplyBox = false,
+  onTagClick
+}: PostCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Estado neutral de votos (desactivados por defecto)
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
-
-  // Estado del Popover de Tags (si hay más de 3)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showAllTags, setShowAllTags] = useState(false);
-
-  // Estado de la respuesta rápida
   const [quickReply, setQuickReply] = useState('');
 
   const authorName = post.author?.username || 'Anónimo';
-  const authorCareer = post.author?.bio || 'Carrera'; // Fallback a Carrera si no tiene datos
+  const authorCareer = post.author?.bio || 'Carrera';
   const communityBreadcrumb = `F / ${post.community_name || 'General'}`;
   const relativeDate = formatDate(post.created_at);
 
   const filter = searchParams.get('filter') || 'respondidos';
+
+  // Si tiene link detectado tomamos el primero
+  const firstLink = post.links && post.links.length > 0 ? post.links[0] : null;
 
   const handleTagClick = (tag: string) => {
     const cleanTag = tag.replace('#', '');
     const params = new URLSearchParams(searchParams.toString());
     params.set('q', cleanTag);
     params.set('filter', filter);
-    router.push(`?${params.toString()}`);
+    if (onTagClick) {
+      onTagClick(cleanTag);
+    }
+    router.push(`/?${params.toString()}`);
   };
 
-  const handleUpvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUserVote(prev => prev === 'up' ? null : 'up');
-  };
-
-  const handleDownvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUserVote(prev => prev === 'down' ? null : 'down');
-  };
+  const [isSubmittingReply, startTransition] = useTransition();
 
   const handleQuickReplySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickReply.trim()) return;
-    alert(`Respuesta rápida enviada: "${quickReply}"`);
-    setQuickReply('');
+    if (!quickReply.trim() || isSubmittingReply || post.status === 'closed') return;
+
+    startTransition(async () => {
+      const res = await addReplyAction(post.id, null, quickReply);
+      if (res.success) {
+        setQuickReply('');
+        setToast({ message: '¡Respuesta guardada con éxito!', type: 'success' });
+      } else {
+        setToast({ message: res.error || 'Error al guardar la respuesta.', type: 'error' });
+      }
+    });
   };
 
   const tags = post.tags || [];
@@ -69,24 +83,49 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
   const visibleTags = hasManyTags ? tags.slice(0, 2) : tags;
 
   return (
-    <article className="bg-pure-white rounded-[30px] p-6 shadow-sm border border-white-gray hover:border-main-blue/40 transition-all font-candal font-normal">
+    <article className="bg-pure-white rounded-[30px] p-6 transition-all font-candal font-normal relative">
       
-      {/* 1. Cabecera Centrada del Post con Padding Proporcional (Edge-to-Edge Line) */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Cabecera del post */}
       <div className="-mx-6 px-6 pt-1 pb-4 mb-4 border-b border-white-gray flex items-center justify-between gap-4">
-        <h2 
-          onClick={() => onSelectPost(post.id)}
+        <h2
+          onClick={() => onSelectPost && onSelectPost(post.id)}
           className="font-candal font-normal text-h4 text-main-black hover:text-main-blue transition-colors cursor-pointer leading-tight flex-1"
         >
           {post.title}
         </h2>
 
         <div className="flex items-center gap-2 shrink-0 text-alpha-black">
+          {/* Badge de fijado */}
+          {post.is_pinned && (
+            <span className="px-2.5 py-0.5 rounded-full font-candal font-normal text-extra-tiny bg-deep-orange/15 text-deep-orange border border-deep-orange/30">
+              📌 Fijado
+            </span>
+          )}
+
+          {/* Badge de cerrado */}
+          {post.status === 'closed' && (
+            <span className="px-2.5 py-0.5 rounded-full font-candal font-normal text-extra-tiny bg-gray-custom/15 text-gray-custom">
+              🔒 Cerrado
+            </span>
+          )}
+
           <span className="font-candal font-normal text-tiny text-alpha-black">
             {communityBreadcrumb}
           </span>
-          <button 
+          <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); alert("Opciones de publicación"); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setToast({ message: 'Opciones de publicación', type: 'info' });
+            }}
             className="font-candal font-normal text-p text-alpha-black hover:text-main-black cursor-pointer bg-transparent border-0 px-1"
           >
             •••
@@ -94,34 +133,35 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
         </div>
       </div>
 
-      {/* 2. Fila del Autor (Nombre text-h4 + UserBadge Módulo 4, Carrera text-h5) + Etiquetas (Derecha) */}
+      {/* Fila del autor */}
       <div className="flex items-center justify-between gap-4 mb-4">
-        
-        {/* Datos del Autor: Altura de 50px ajustada con justify-between para alinear al top y bottom del avatar (Imagen 1) */}
-        <div className="flex items-center gap-3">
-          <UserAvatar avatarUrl={post.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
+        <div className="flex items-start gap-4">
+          <div className="mt-[3px] shrink-0">
+            <UserAvatar avatarUrl={post.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
+          </div>
 
-          <div className="h-[50px] flex flex-col justify-between py-[1px]">
-            <div className="flex items-center gap-2">
-              <h4 className="font-candal font-normal text-h4 text-main-black leading-none m-0 p-0">
-                {authorName}
-              </h4>
-              {post.author && (
-                <UserBadge 
-                  reputation={post.author.reputation || 0} 
-                  role={post.author.role || 'regular'} 
+          <div className="flex flex-col space-y-[7px]">
+            <h4 className="font-candal font-normal text-h4 text-main-black leading-tight m-0 p-0">
+              {authorName}
+            </h4>
+
+            {post.author && (
+              <div className="flex items-center my-[1px]">
+                <UserBadge
+                  reputation={post.author.reputation || 0}
+                  role={post.author.role || 'regular'}
                 />
-              )}
-            </div>
-            
-            <h5 className="font-candal font-normal text-h5 text-alpha-black leading-none m-0 p-0">
+              </div>
+            )}
+
+            <h5 className="font-candal font-normal text-h5 text-alpha-black leading-tight m-0 p-0">
               {authorCareer}
             </h5>
           </div>
         </div>
 
-        {/* Lista de Etiquetas Apiladas a la Derecha con Hover a Regular Blue / Pure White */}
-        {tags.length > 0 && (
+        {/* Tags a la derecha sólo en feed */}
+        {!isThreadView && tags.length > 0 && (
           <div className="relative flex flex-col items-end space-y-1 text-right shrink-0">
             {visibleTags.map((tag) => (
               <button
@@ -150,9 +190,8 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
                   +{tags.length - 2} más ▾
                 </button>
 
-                {/* Popover de Tags Adicionales */}
                 {showAllTags && (
-                  <div 
+                  <div
                     onClick={(e) => e.stopPropagation()}
                     className="absolute right-0 top-full mt-1 bg-pure-white border border-white-gray rounded-[16px] p-2.5 shadow-lg z-50 flex flex-col gap-1 min-w-[120px]"
                   >
@@ -180,83 +219,137 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
         )}
       </div>
 
-      {/* 3. Contenido de la Publicación */}
+      {/* Contenido */}
       {post.content && (
-        <p className="font-candal font-normal text-p text-lite-black leading-relaxed mb-4 line-clamp-3">
+        <p className={`font-candal font-normal text-p text-lite-black leading-relaxed mb-4 ${isThreadView ? 'whitespace-pre-wrap' : 'line-clamp-3'}`}>
           {post.content}
         </p>
       )}
 
-      {/* 4. Contador de Votos: Votos (+) en color Link (main-blue) y Votos (-) en Deep Orange */}
-      <div className="flex items-center justify-between text-tiny font-candal font-normal mb-3">
-        <div className="flex items-center gap-3">
-          <span className="text-main-blue font-bold">
-            {post.votes_count || 0} (+) votos
-          </span>
-          <span className="text-deep-orange font-bold">
-            0 (-) votos
-          </span>
+      {/* Previsualización del enlace en la tarjeta */}
+      {firstLink && (
+        <div className="mt-3 mb-4">
+          <a 
+            href={firstLink.url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center overflow-hidden bg-lite-white rounded-[20px] hover:bg-white-gray/50 transition group p-3 gap-4 border-0"
+          >
+            {firstLink.image_url && (
+              <div className="relative w-28 h-20 sm:w-32 sm:h-20 flex-shrink-0 overflow-hidden rounded-[14px] bg-pure-white">
+                <img 
+                  src={firstLink.image_url} 
+                  alt={firstLink.title || 'Vista previa'} 
+                  className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0 pr-2 space-y-1 font-candal font-normal">
+              <div className="flex items-center space-x-1.5 text-tiny text-regular-blue">
+                <span>🔗</span>
+                <span className="truncate">{(() => { try { return new URL(firstLink.url).hostname; } catch { return firstLink.url; } })()}</span>
+              </div>
+              <h3 className="font-candal font-normal text-p text-main-black group-hover:text-regular-blue transition-colors line-clamp-1">
+                {firstLink.title || firstLink.url}
+              </h3>
+              {firstLink.description && (
+                <p className="text-tiny text-gray-custom line-clamp-2 leading-relaxed">
+                  {firstLink.description}
+                </p>
+              )}
+            </div>
+          </a>
         </div>
+      )}
 
-        <span className="text-alpha-black">{relativeDate}</span>
-      </div>
+      {/* Tags abajo en threadview */}
+      {isThreadView && tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {tags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => handleTagClick(tag)}
+              className="px-4 py-1.5 bg-regular-blue hover:bg-dark-main-blue text-pure-white font-open-sans font-extrabold text-tiny rounded-full transition-all cursor-pointer border-0 active:scale-95 shadow-xs"
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* 5. Barra Inferior Interactiva */}
+      {/* Fecha relativa */}
+      {!isThreadView && (
+        <div className="flex items-center justify-end text-tiny font-candal font-normal mb-3">
+          <span className="text-alpha-black">{relativeDate}</span>
+        </div>
+      )}
+
+      {/* Barra de acciones inferior */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-3">
-          
-          {/* Botones de Votos Desactivados por Defecto (Flechas Imagen 2) */}
-          <button 
-            type="button" 
-            onClick={handleUpvote}
-            className="p-0 border-0 bg-transparent cursor-pointer hover:scale-105 transition-transform"
-          >
-            <UpvoteIcon active={userVote === 'up'} className="w-8 h-8" />
-          </button>
-
-          <button 
-            type="button" 
-            onClick={handleDownvote}
-            className="p-0 border-0 bg-transparent cursor-pointer hover:scale-105 transition-transform"
-          >
-            <DownvoteIcon active={userVote === 'down'} className="w-8 h-8" />
-          </button>
-
-          {/* Input de Respuesta Rápida EXACTO a Imagen 3 (Fondo Lite-White, Borde 2px main-blue, Avión de Papel Delineado con Doblez) */}
-          <form 
-            onSubmit={handleQuickReplySubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="hidden sm:flex items-center bg-lite-white rounded-full pl-5 pr-[3px] py-[3px] border-2 border-main-blue w-64 justify-between h-[42px]"
-          >
-            <input 
-              type="text" 
-              value={quickReply}
-              onChange={(e) => setQuickReply(e.target.value)}
-              placeholder="Escribe una respuesta..." 
-              className="bg-transparent border-0 text-tiny font-candal font-normal text-main-black placeholder:text-alpha-black focus:outline-none flex-1 pr-2"
+          <div onClick={(e) => e.stopPropagation()}>
+            <VoteManager
+              replyId={post.id}
+              initialVoteCount={post.votes_count || 0}
+              currentSessionUserId="00000000-0000-0000-0000-000000000001"
+              replyAuthorId={post.author_id || post.author?.id || ''}
             />
-            <button 
-              type="submit"
-              className="w-[34px] h-[34px] rounded-full bg-main-blue hover:bg-dark-main-blue flex items-center justify-center border-0 text-pure-white cursor-pointer shrink-0 transition-colors shadow-xs"
+          </div>
+
+          {!isThreadView && post.status !== 'closed' && (
+            <form 
+              onSubmit={handleQuickReplySubmit}
+              onClick={(e) => e.stopPropagation()}
+              className="hidden sm:flex items-center bg-lite-white rounded-full border-2 border-main-blue w-64 h-[38px] overflow-hidden p-0 relative"
             >
-              <PaperPlaneIcon className="w-4 h-4 text-pure-white" />
-            </button>
-          </form>
+              <input 
+                type="text" 
+                value={quickReply}
+                onChange={(e) => setQuickReply(e.target.value)}
+                placeholder="Escribe una respuesta..." 
+                className="bg-transparent border-0 text-tiny font-candal font-normal text-main-black placeholder:text-alpha-black focus:outline-none flex-1 pl-4 pr-2 min-w-0"
+              />
+              <button 
+                type="submit"
+                className="group/sendbtn h-[calc(100%+4px)] -mr-[2px] -my-[2px] aspect-square bg-main-blue hover:bg-dark-main-blue flex items-center justify-center border-0 text-pure-white cursor-pointer shrink-0 transition-all duration-200 rounded-full"
+                title="Enviar respuesta rápida"
+              >
+                <PaperPlaneIcon className="w-4 h-4 text-pure-white group-hover/sendbtn:scale-115 transition-transform duration-200" />
+              </button>
+            </form>
+          )}
         </div>
 
-        {/* Enlace Ver respuestas > con Texto text-alpha-black e Icono Chevron Bold Negro */}
-        <button
-          type="button"
-          onClick={() => onSelectPost(post.id)}
-          className="font-candal font-normal text-tiny text-alpha-black hover:text-main-black flex items-center gap-1.5 cursor-pointer transition-colors bg-transparent border-0 group"
-        >
-          <span>Ver respuestas</span>
-          <ChevronRightIcon className="w-5 h-5 text-main-black group-hover:scale-110 transition-transform" />
-        </button>
+        {isThreadView ? (
+          <button 
+            type="button"
+            disabled={post.status === 'closed'}
+            onClick={onMainReplyClick} 
+            className="px-6 py-2.5 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white font-candal font-normal text-p rounded-full transition-all cursor-pointer border-0 shadow-sm active:scale-95"
+          >
+            {post.status === 'closed' ? 'Hilo Cerrado' : showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectPost && onSelectPost(post.id)}
+            className="font-candal font-normal text-tiny text-alpha-black hover:text-main-black flex items-center gap-1.5 cursor-pointer transition-colors bg-transparent border-0 group"
+          >
+            <span>Ver respuestas</span>
+            <ChevronRightIcon className="w-5 h-5 text-main-black group-hover:scale-110 transition-transform" />
+          </button>
+        )}
       </div>
 
     </article>
   );
+}
+
+export interface PostListProps {
+  onSelectPost?: (id: string) => void;
 }
 
 export default function PostList({ onSelectPost }: PostListProps) {
@@ -275,8 +368,8 @@ export default function PostList({ onSelectPost }: PostListProps) {
         if (query.trim() === '') {
           results = await getPostsAction(filter);
         } else {
-          const tags = query.includes(',') 
-            ? query.split(',').map(t => t.trim().toLowerCase()) 
+          const tags = query.includes(',')
+            ? query.split(',').map(t => t.trim().toLowerCase())
             : [];
           results = await searchPosts(query, undefined, tags, filter);
         }
@@ -302,11 +395,15 @@ export default function PostList({ onSelectPost }: PostListProps) {
 
   if (posts.length === 0) {
     return (
-      <div className="p-10 bg-pure-white border border-white-gray rounded-[30px] text-center shadow-sm">
+      <div className="p-10 bg-pure-white rounded-[30px] text-center">
         <p className="font-candal font-normal text-p text-alpha-black">
-          {query 
-            ? `No se encontraron publicaciones para "${query}"` 
-            : 'No hay publicaciones disponibles por el momento.'}
+          {query ? (
+            <>
+              No se encontraron publicaciones para <span className="font-open-sans font-extrabold text-main-black">&quot;{query}&quot;</span>
+            </>
+          ) : (
+            'No hay publicaciones disponibles por el momento.'
+          )}
         </p>
       </div>
     );
@@ -315,8 +412,8 @@ export default function PostList({ onSelectPost }: PostListProps) {
   return (
     <div className="space-y-5">
       {query && (
-        <p className="font-candal font-normal text-tiny text-alpha-black px-1">
-          Resultados de búsqueda para: <span className="text-main-black font-candal font-normal">&quot;{query}&quot;</span>
+        <p className="font-candal font-normal text-tiny text-alpha-black px-6 sm:px-8 py-1">
+          Resultados de búsqueda para: <span className="font-open-sans font-extrabold text-main-black">&quot;{query}&quot;</span>
         </p>
       )}
 

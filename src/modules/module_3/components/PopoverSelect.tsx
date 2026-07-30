@@ -18,7 +18,11 @@ export interface PopoverSelectProps {
   titleHeader?: string;
   popoverWidth?: string;
   originTop?: boolean;
+  alignRight?: boolean;
   buttonClassName?: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
+  onClose?: () => void;
 }
 
 export default function PopoverSelect({
@@ -31,10 +35,32 @@ export default function PopoverSelect({
   titleHeader,
   popoverWidth = "w-44",
   originTop = true,
+  alignRight = false,
   buttonClassName,
+  isOpen: controlledIsOpen,
+  onToggle,
+  onClose,
 }: PopoverSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  const togglePopover = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
+  };
+
+  const closePopover = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      setInternalIsOpen(false);
+    }
+  };
 
   const filteredOptions = options.filter((option) =>
     option.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -56,7 +82,7 @@ export default function PopoverSelect({
       {/* Botón Desplegable */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={togglePopover}
         className={buttonClassName || defaultButtonClass}
       >
         <span>{displayLabel}</span>
@@ -70,24 +96,24 @@ export default function PopoverSelect({
       {/* Popover Card Desplegable */}
       {isOpen && (
         <div
-          className={`absolute left-0 ${
+          className={`absolute ${alignRight ? 'right-0' : 'left-0'} ${
             originTop ? 'top-0' : 'top-full mt-2'
-          } z-50 ${popoverWidth} bg-lite-white rounded-[10px] p-2.5 shadow-[0px_4px_4px_rgba(0,0,0,0.25)] border-0 flex flex-col justify-between animate-in fade-in zoom-in-95 duration-100 font-candal font-normal`}
+          } z-50 ${popoverWidth} bg-lite-white rounded-[16px] p-3 shadow-lg border border-white-gray flex flex-col justify-between animate-in fade-in zoom-in-95 duration-100 font-candal font-normal`}
         >
           {/* Cabecera del Popover */}
-          <div className="flex items-center justify-between px-1 pb-1">
+          <div className="flex items-center justify-between px-1 pb-1 border-b border-white-gray mb-1.5">
             <span className="font-candal font-normal text-extra-tiny text-main-black">{headerTitle}</span>
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
-              className="text-extra-tiny text-main-black cursor-pointer font-candal font-normal pl-2"
+              onClick={closePopover}
+              className="text-extra-tiny text-main-black cursor-pointer font-candal font-normal pl-2 border-0 bg-transparent"
             >
               <ChevronUpIcon className="w-[9px] h-[5px] text-main-black" />
             </button>
           </div>
 
           {/* Lista de Opciones */}
-          <div className="max-h-36 overflow-y-auto space-y-1 my-1.5 pr-0.5">
+          <div className="max-h-48 overflow-y-auto space-y-1 my-1 pr-0.5">
             {filteredOptions.length === 0 ? (
               <p className="text-extra-tiny font-candal font-normal text-gray-custom text-center py-1">
                 Sin resultados
@@ -99,9 +125,9 @@ export default function PopoverSelect({
                   type="button"
                   onClick={() => {
                     onSelect(option.id);
-                    setIsOpen(false);
+                    closePopover();
                   }}
-                  className={`w-full font-candal font-normal text-extra-tiny py-1 px-2.5 rounded-full text-center transition-all cursor-pointer block truncate ${
+                  className={`w-full font-candal font-normal text-tiny py-1.5 px-3 rounded-full text-center transition-all cursor-pointer block border-0 ${
                     selectedValue === option.id
                       ? 'bg-regular-blue text-pure-white'
                       : 'bg-white-gray hover:bg-gray-blue text-main-black'
@@ -113,17 +139,19 @@ export default function PopoverSelect({
             )}
           </div>
 
-          {/* Mini Buscador Opcional */}
+          {/* Campo de Búsqueda Interno (Opcional) */}
           {showSearchInput && (
-            <div className="relative mt-1.5 pt-1.5 border-t border-white-gray flex items-center">
-              <input
-                type="text"
-                placeholder={searchPlaceholder}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white-gray text-main-black font-candal font-normal text-extra-tiny pl-2.5 pr-7 py-1 rounded-full focus:outline-none placeholder:text-alpha-black placeholder:font-candal placeholder:font-normal border-0"
-              />
-              <SearchIcon className="absolute right-2.5 w-[18px] h-[18px] text-lite-black pointer-events-none" />
+            <div className="mt-2 pt-2 border-t border-white-gray">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-white-gray text-main-black font-candal font-normal text-extra-tiny pl-3.5 pr-8 py-1.5 rounded-full border-0 focus:outline-none placeholder:text-gray-custom"
+                />
+                <SearchIcon className="absolute right-3 w-3.5 h-3.5 text-main-black pointer-events-none" />
+              </div>
             </div>
           )}
         </div>

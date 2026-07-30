@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { addReply } from '@module_3/posts/services/supabase-service';
-import { createNotification } from '@/modules/module_4/notifications/services/notification.service';
+import { createNotification } from '@module_4/notifications/services/notification.service';
 import { createClient } from '@/lib/db/server';
 
 export async function addReplyAction(postId: string, parentId: string | null, content: string) {

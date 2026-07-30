@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import PopoverSelect from '../../components/PopoverSelect';
 import SearchInput from './SearchInput';
 
-export default function SearchBox() {
+interface SearchBoxProps {
+  children?: React.ReactNode;
+}
+
+export default function SearchBox({ children }: SearchBoxProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -16,6 +20,9 @@ export default function SearchBox() {
   const [searchTerm, setSearchTerm] = useState(queryParam);
   const [filter, setFilter] = useState(filterParam);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  // Estado para controlar que sólo un menú popover se abra a la vez
+  const [activePopover, setActivePopover] = useState<'topics' | 'filter' | null>(null);
 
   // Opciones de Temas y Filtros
   const topicOptions = [
@@ -43,14 +50,14 @@ export default function SearchBox() {
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams.toString());
-    
+
     if (searchTerm.trim()) {
       params.set('q', searchTerm.trim());
     } else {
       params.delete('q');
     }
     params.set('filter', filter);
-    
+
     router.push(`?${params.toString()}`);
   };
 
@@ -76,49 +83,63 @@ export default function SearchBox() {
   };
 
   return (
-    <div className="bg-pure-white rounded-[30px] p-5 sm:p-6 shadow-sm border border-white-gray w-full mb-6">
-      <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center justify-between gap-4">
-        
-        {/* Campo Principal de Búsqueda */}
-        <div className="flex-1 w-full min-w-[200px]">
-          <SearchInput
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+    <div className="bg-[#E5EBF3] rounded-[35px] p-0 space-y-4 w-full overflow-hidden">
 
-        {/* Selector Desplegable de Temas */}
-        <div className="relative">
-          <PopoverSelect
-            label="Temas:"
-            options={topicOptions}
-            selectedValue={selectedTag || ''}
-            onSelect={(val) => handleTagClick(val)}
-            titleHeader="Temas"
-            showSearchInput={true}
-            searchPlaceholder="Buscar..."
-            popoverWidth="w-44"
-            originTop={false}
-            buttonClassName={filterButtonClass}
-          />
-        </div>
+      {/* 1. Tarjeta Blanca del Buscador */}
+      <div className="bg-pure-white rounded-[30px] p-5 sm:p-6 w-full">
+        <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center justify-between gap-4">
 
-        {/* Selector Desplegable de Filtro */}
-        <div className="relative">
-          <PopoverSelect
-            label="Filtro:"
-            options={filterOptions}
-            selectedValue={filter}
-            onSelect={(val) => handleFilterChange(val)}
-            titleHeader="Filtro"
-            popoverWidth="w-48"
-            originTop={false}
-            buttonClassName={filterButtonClass}
-          />
-        </div>
+          {/* Campo Principal de Búsqueda */}
+          <div className="flex-1 w-full min-w-[200px]">
+            <SearchInput
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-      </form>
+          {/* Selector Desplegable de Temas (Cierra Filtros automáticamente) */}
+          <div className="relative">
+            <PopoverSelect
+              label="Temas:"
+              options={topicOptions}
+              selectedValue={selectedTag || ''}
+              onSelect={(val) => handleTagClick(val)}
+              titleHeader="Temas"
+              showSearchInput={true}
+              searchPlaceholder="Buscar..."
+              popoverWidth="w-44"
+              originTop={false}
+              buttonClassName={filterButtonClass}
+              isOpen={activePopover === 'topics'}
+              onToggle={() => setActivePopover(prev => prev === 'topics' ? null : 'topics')}
+              onClose={() => setActivePopover(null)}
+            />
+          </div>
+
+          {/* Selector Desplegable de Filtro (Cierra Temas automáticamente) */}
+          <div className="relative">
+            <PopoverSelect
+              label="Filtro:"
+              options={filterOptions}
+              selectedValue={filter}
+              onSelect={(val) => handleFilterChange(val)}
+              titleHeader="Filtro"
+              popoverWidth="w-56"
+              originTop={false}
+              alignRight={true}
+              buttonClassName={filterButtonClass}
+              isOpen={activePopover === 'filter'}
+              onToggle={() => setActivePopover(prev => prev === 'filter' ? null : 'filter')}
+              onClose={() => setActivePopover(null)}
+            />
+          </div>
+
+        </form>
+      </div>
+
+      {/* 2. Publicaciones enlazadas al ras del fondo gris intermedio */}
+      {children}
     </div>
   );
 }
