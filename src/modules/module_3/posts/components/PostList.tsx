@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
 import { getPostsAction } from '@module_3/posts/actions/post';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
+import UserBadge from '@/modules/module_4/reputation/components/UserBadge';
 import UserAvatar from '../../components/UserAvatar';
 import { 
   UpvoteIcon, 
@@ -93,7 +94,7 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
         </div>
       </div>
 
-      {/* 2. Fila del Autor (Nombre text-h4 alineado al top, Carrera text-h5 alineado al bottom) + Etiquetas (Derecha) */}
+      {/* 2. Fila del Autor (Nombre text-h4 + UserBadge Módulo 4, Carrera text-h5) + Etiquetas (Derecha) */}
       <div className="flex items-center justify-between gap-4 mb-4">
         
         {/* Datos del Autor: Altura de 50px ajustada con justify-between para alinear al top y bottom del avatar (Imagen 1) */}
@@ -101,11 +102,18 @@ function PostCard({ post, onSelectPost }: { post: UnifiedPost; onSelectPost: (id
           <UserAvatar avatarUrl={post.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
 
           <div className="h-[50px] flex flex-col justify-between py-[1px]">
-            <h4 className="font-candal font-normal text-h4 text-main-black leading-none m-0 p-0">
-              {authorName}
-            </h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-candal font-normal text-h4 text-main-black leading-none m-0 p-0">
+                {authorName}
+              </h4>
+              {post.author && (
+                <UserBadge 
+                  reputation={post.author.reputation || 0} 
+                  role={post.author.role || 'regular'} 
+                />
+              )}
+            </div>
             
-            {/* DEUDA TÉCNICA MÓDULO 4: Reservado para <UserBadge reputation={post.author?.reputation} role={post.author?.role} /> */}
             <h5 className="font-candal font-normal text-h5 text-alpha-black leading-none m-0 p-0">
               {authorCareer}
             </h5>

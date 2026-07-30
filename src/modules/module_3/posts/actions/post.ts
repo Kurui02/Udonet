@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createPost, getPosts, UnifiedPost } from "@module_3/posts/services/supabase-service";
-import {
-  getUserMainCommunities,
+import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/supabase-service";
+import { 
+  getUserMainCommunities, 
   getCommunityBySlug,
-  isUserSubscribed
+  isUserSubscribed 
 } from "@module_2/communities/exports";
-import { getPostsByUser, UnifiedPost } from '../services/supabase-service';
+
+const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export interface CommunityOption {
   id: string;
@@ -17,9 +18,7 @@ export interface CommunityOption {
 export async function getPostsByUserAction(userId: string): Promise<UnifiedPost[]> {
   try {
     if (!userId) throw new Error("El userId es requerido");
-
-    const posts = await getPostsByUser(userId);
-    return posts;
+    return await getPostsByUser(userId);
   } catch (error) {
     console.error("Error obteniendo los posts del usuario:", error);
     return [];
@@ -28,9 +27,9 @@ export async function getPostsByUserAction(userId: string): Promise<UnifiedPost[
 
 export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[]> {
   try {
-    const mainCommunities = await getUserMainCommunities();
+    const mainCommunities = await getUserMainCommunities(MOCK_USER_ID);
 
-    return (mainCommunities || []).map((community) => ({
+    return (mainCommunities || []).map((community: any) => ({
       id: community.id,
       name: community.name,
     }));
@@ -46,30 +45,61 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
       console.error("Error al buscar la comunidad General:", fallbackError);
     }
 
-    return [];
+    return [{ id: "00000000-0000-0000-0000-000000000002", name: "General" }];
   }
 }
 
-export async function createPostAction(formData: FormData) {
+export async function createPostAction(formData: FormData | {
+  title: string;
+  content: string;
+  communityId: string;
+  tags?: string[];
+  links?: string[];
+}) {
   try {
-    // Extraemos el ID de la comunidad enviada desde el formulario
-    const communityId = (formData.get("community_id") || formData.get("communityId"))?.toString();
+    let payload: {
+      title: string;
+      content: string;
+      communityId: string;
+      tags?: string[];
+      links?: string[];
+    };
 
-    if (!communityId) {
-      return { success: false, error: "Debes seleccionar una comunidad válida." };
+    if (formData instanceof FormData) {
+      const title = formData.get("title") as string;
+      const content = (formData.get("postText") as string) || (formData.get("content") as string) || "";
+      const communityId = formData.get("communityId") as string;
+      const tagsStr = formData.get("tags") as string;
+      const tags = tagsStr ? tagsStr.split(",").map(t => t.trim().replace("#", "")) : [];
+      const link = formData.get("detectedUrl") as string;
+      const links = link ? [link] : [];
+
+      payload = { title, content, communityId, tags, links };
+    } else {
+      payload = formData;
     }
 
-    // Verificamos membresía activa con la función exportada del Módulo 2
-    const hasMembership = await isUserSubscribed(communityId);
-
-    if (!hasMembership) {
-      return {
-        success: false,
-        error: "Debes estar suscrito a esta comunidad para poder publicar en ella."
-      };
+    if (!payload.title || !payload.title.trim()) {
+      return { success: false, error: "El título es obligatorio." };
     }
 
-    const result = await createPost(formData);
+    if (!payload.communityId) {
+      return { success: false, error: "Debes seleccionar una comunidad." };
+    }
+
+    try {
+      const hasMembership = await isUserSubscribed(MOCK_USER_ID, payload.communityId);
+      if (!hasMembership) {
+        return { 
+          success: false, 
+          error: "Debes estar suscrito a esta comunidad para poder publicar en ella." 
+        };
+      }
+    } catch (subError) {
+      console.warn("Validación de membresía ignorada en dev:", subError);
+    }
+
+    const result = await createPost(payload);
 
     if (result.success) {
       revalidatePath("/");

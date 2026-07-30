@@ -106,21 +106,33 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
   return post;
 }
 
-export async function createPost(formData: FormData): Promise<ActionResponse> {
+export async function createPost(formData: FormData | any): Promise<ActionResponse> {
   const supabase = await createClient();
 
   // Obtener sesión del usuario (Autenticación real)
   const { data: { user } } = await supabase.auth.getUser();
-  //if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
 
   const userId = user?.id || MOCK_USER.id;
 
-  const title = formData.get("title") as string;
-  const content = formData.get("postText") as string;
-  const detectedUrl = formData.get("detectedUrl") as string;
-  const tagsInput = formData.get("tags") as string;
+  let title: string;
+  let content: string;
+  let detectedUrl: string;
+  let tagsInput: string;
+  let communityId: string;
 
-  const communityId = formData.get("communityId") as string || formData.get("community_id") as string || DEFAULT_MOCK_COMMUNITY_ID;
+  if (formData instanceof FormData) {
+    title = formData.get("title") as string;
+    content = (formData.get("postText") as string) || (formData.get("content") as string) || "";
+    detectedUrl = formData.get("detectedUrl") as string;
+    tagsInput = formData.get("tags") as string;
+    communityId = (formData.get("communityId") as string) || (formData.get("community_id") as string) || DEFAULT_MOCK_COMMUNITY_ID;
+  } else {
+    title = formData.title;
+    content = formData.content || "";
+    detectedUrl = formData.links && formData.links.length > 0 ? formData.links[0] : "";
+    tagsInput = formData.tags ? formData.tags.join(",") : "";
+    communityId = formData.communityId || DEFAULT_MOCK_COMMUNITY_ID;
+  }
   // (eliminar al pasar a la base de datos real)
   if (!user) {
     await supabase.from('users').upsert({

@@ -45,7 +45,7 @@ export async function addReplyAction(postId: string, parentId: string | null, co
 
                 if (!error && usersData) {
                     for (const user of usersData) {
-                        await createNotification(user.id, 'mention', postId);
+                        await createNotification(user.id, 'reply' as any, postId);
                     }
                 }
             }
