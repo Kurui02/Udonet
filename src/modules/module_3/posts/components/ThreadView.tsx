@@ -4,13 +4,15 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
 import { UnifiedPost, DatabaseReply } from '@module_3/posts/services/supabase-service';
+import UserBadge from '@/modules/module_4/reputation/components/UserBadge';
+import VoteManager from '@/modules/module_4/votes/components/VoteManager';
 
 interface ThreadViewProp {
   threadId: string;
   onBack: () => void;
 }
 
-const MockUsers = ['Alejandro','Joyce_Valerio', 'Dano', 'Keiber'];
+const MockUsers = ['Alejandro', 'Joyce_Valerio', 'Dano', 'Keiber'];
 
 interface MentionTextareaProps {
   value: string;
@@ -55,7 +57,7 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
     const beforeAt = value.slice(0, mentionQuery.start - 1);
     const endOfQuery = mentionQuery.start + mentionQuery.text.length;
     const afterCursor = value.slice(endOfQuery);
-    
+
     const newValue = `${beforeAt}@${username} ${afterCursor}`;
     onChange(newValue);
     setSuggestions([]);
@@ -73,7 +75,7 @@ function MentionTextarea({ value, onChange, placeholder, disabled, rows }: Menti
         disabled={disabled}
         className="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-md text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      
+
       {suggestions.length > 0 && (
         <ul className="absolute top-full left-2.5 bg-gray-800 border border-gray-600 rounded-lg list-none py-1 mt-1 w-56 max-h-40 overflow-y-auto shadow-xl z-50">
           {suggestions.map(user => (
@@ -100,10 +102,10 @@ const renderTextWithMentions = (text: string | null) => {
 
   return parts.map((part, index) => {
     if (part.match(mentionRegex)) {
-      const username = part.substring(1); 
+      const username = part.substring(1);
       return (
-        <span 
-          key={index} 
+        <span
+          key={index}
           className="text-blue-400 font-semibold cursor-pointer hover:underline"
           onClick={() => alert(`Esto redirigiría al perfil del usuario: ${username}`)}
           title={`Ver perfil de ${username}`}
@@ -116,11 +118,11 @@ const renderTextWithMentions = (text: string | null) => {
   });
 };
 
-function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseReply; postId: string; onAddReply:() => void; level?: number }) {
+function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseReply; postId: string; onAddReply: () => void; level?: number }) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
-  const indentation = Math.min(level *  20, 80);
+  const indentation = Math.min(level * 20, 80);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,64 +140,70 @@ function Comments({ reply, postId, onAddReply, level = 0 }: { reply: DatabaseRep
   };
 
   return (
-        <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-gray-700 p-3 mt-3 bg-zinc-900 rounded-md">
-            <div className="text-xs text-blue-400 mb-1.5 flex justify-between items-center">
-                <span><strong>{reply.author?.username || 'Anónimo'}</strong> • {new Date(reply.created_at).toLocaleDateString()}</span>
-            </div>
-            
-            <p className="mb-2.5 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
-              {renderTextWithMentions(reply.content)}
-            </p>
-
-            {/* BOTONES DE INTERACCIÓN */}
-            <div className="flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-1 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">
-                    <button onClick={() => alert("Lógica de votos(Módulo 4)")} className="bg-transparent border-0 text-zinc-400 hover:text-white cursor-pointer font-bold transition-colors">▲</button>
-                    <span className="text-white font-bold px-0.5">{reply.vote_count}</span>
-                    <button onClick={() => alert("Lógica de votos(Módulo 4)")} className="bg-transparent border-0 text-zinc-400 hover:text-white cursor-pointer font-bold transition-colors">▼</button>
-                </div>
-
-                <button 
-                    onClick={() => setShowReplyBox(!showReplyBox)} 
-                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '600' }}
-                >
-                    {showReplyBox ? 'Cancelar' : 'Responder'}
-                </button>
-            </div>
-
-            {/* CAJA DE TEXTO PARA RESPONDER*/}
-            {showReplyBox && (
-                <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    
-                    <MentionTextarea
-                      value={replyContent}
-                      onChange={setReplyContent}
-                      placeholder={`Respondiendo a ${reply.author?.username || 'Anónimo'}...`}
-                      rows={2}
-                      disabled={isPending}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button 
-                            type="submit" 
-                            disabled={!replyContent.trim() || isPending}
-                            style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            {isPending ? 'Enviando...' : 'Enviar Respuesta'}
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {/* RECURSIVIDAD DE RESPUESTAS */}
-            {reply.nestedReplies && reply.nestedReplies.length > 0 && (
-                <div className="mt-2 space-y-2">
-                    {reply.nestedReplies.map((child) => (
-                        <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
-                    ))}
-                </div>
-            )}
+    <div style={{ marginLeft: `${indentation}px` }} className="border-l-2 border-gray-700 p-3 mt-3 bg-zinc-900 rounded-md">
+      <div className="text-xs text-blue-400 mb-1.5 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span><strong>{reply.author?.username || 'Anónimo'}</strong> • {new Date(reply.created_at).toLocaleDateString()}</span>
+          {reply.author && (
+            <UserBadge reputation={reply.author.reputation || 0} role={reply.author.role || 'regular'} />
+          )}
         </div>
-    );
+      </div>
+
+      <p className="mb-2.5 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+        {renderTextWithMentions(reply.content)}
+      </p>
+
+      {/* BOTONES DE INTERACCIÓN */}
+      <div className="flex items-center gap-3 text-xs">
+        <VoteManager
+          replyId={reply.id}
+          initialVoteCount={reply.vote_count || 0}
+          currentSessionUserId={"CURRENT_USER_ID"} /* TODO: Reemplazar con ID de sesión real */
+          replyAuthorId={reply.author?.id || ""}
+        />
+
+        <button
+          onClick={() => setShowReplyBox(!showReplyBox)}
+          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontWeight: '600' }}
+        >
+          {showReplyBox ? 'Cancelar' : 'Responder'}
+        </button>
+      </div>
+
+      {/* CAJA DE TEXTO PARA RESPONDER*/}
+      {showReplyBox && (
+        <form onSubmit={handleSubmitReply} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+          <MentionTextarea
+            value={replyContent}
+            onChange={setReplyContent}
+            placeholder={`Respondiendo a ${reply.author?.username || 'Anónimo'}...`}
+            rows={2}
+            disabled={isPending}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="submit"
+              disabled={!replyContent.trim() || isPending}
+              style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {isPending ? 'Enviando...' : 'Enviar Respuesta'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* RECURSIVIDAD DE RESPUESTAS */}
+      {reply.nestedReplies && reply.nestedReplies.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {reply.nestedReplies.map((child) => (
+            <Comments key={child.id} reply={child} postId={postId} onAddReply={onAddReply} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
@@ -206,7 +214,7 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
   const [mainReplyContent, setMainReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
 
-   const loadData = async () => {
+  const loadData = async () => {
     const data = await getThread(threadId);
     setThread(data);
     setLoading(false);
@@ -256,8 +264,8 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
     thread.status === 'closed'
       ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-400'
       : thread.is_pinned
-      ? 'bg-amber-950/50 border border-amber-800 text-amber-400'
-      : 'bg-blue-950/50 border border-blue-800 text-blue-400';
+        ? 'bg-amber-950/50 border border-amber-800 text-amber-400'
+        : 'bg-blue-950/50 border border-blue-800 text-blue-400';
 
   const firstLink = thread.links && thread.links.length > 0 ? thread.links[0] : null;
 
@@ -320,30 +328,36 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
         )}
 
         <div className="text-xs text-gray-400 border-t border-gray-850 pt-3 flex items-center justify-between">
-          <div>Autor: <strong className="text-gray-200">{thread.author?.username || 'Anónimo'}</strong></div>
+          <div className="flex items-center gap-2">
+            <div>Autor: <strong className="text-gray-200">{thread.author?.username || 'Anónimo'}</strong></div>
+            {thread.author && (
+              <UserBadge reputation={thread.author.reputation || 0} role={thread.author.role || 'regular'} />
+            )}
+          </div>
           <div className="flex items-center space-x-3">
             <button onClick={() => setShowMainReplyBox(!showMainReplyBox)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-xs">
               {showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
             </button>
-            <div className="flex items-center gap-1.5 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-700">
-              <button onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-gray-400 hover:text-white cursor-pointer font-bold text-sm transition-colors">▲</button>
-              <span className="font-bold text-white">{thread.votes_count}</span>
-              <button onClick={() => alert("Lógica de votos (Módulo 4)")} className="bg-transparent border-0 text-gray-400 hover:text-white cursor-pointer font-bold text-sm transition-colors">▼</button>
-            </div>
+            <VoteManager
+              replyId={thread.id} // Usando el ID del post principal
+              initialVoteCount={thread.votes_count || 0}
+              currentSessionUserId={"CURRENT_USER_ID"} /* TODO: Reemplazar con ID de sesión real */
+              replyAuthorId={thread.author?.id || ""}
+            />
           </div>
         </div>
       </div>
-      
+
       {showMainReplyBox && (
         <div className="p-4 bg-[#1f2937] rounded-xl border border-gray-700 shadow-md">
           <h3 className="text-sm font-semibold mb-2">Escribe tu respuesta al hilo principal</h3>
           <form onSubmit={handleMainReplySubmit}>
-            <MentionTextarea 
+            <MentionTextarea
               value={mainReplyContent} onChange={setMainReplyContent} placeholder="Escribe lo que piensas sobre este hilo..." rows={3} disabled={isPending}
             />
             <div className="flex justify-end">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={!mainReplyContent.trim() || isPending}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-xs font-bold transition-all cursor-pointer"
               >

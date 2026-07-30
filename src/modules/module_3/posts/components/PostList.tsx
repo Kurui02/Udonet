@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { searchPosts } from '@module_3/search/actions/search';
 import { getPostsAction } from '@module_3/posts/actions/post';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
+import UserBadge from '@/modules/module_4/reputation/components/UserBadge';
 
 interface PostListProps {
   onSelectPost: (id: string) => void;
@@ -26,8 +27,8 @@ export default function PostList({ onSelectPost }: PostListProps) {
         if (query.trim() === '') {
           results = await getPostsAction(filter);
         } else {
-          const tags = query.includes(',') 
-            ? query.split(',').map(t => t.trim().toLowerCase()) 
+          const tags = query.includes(',')
+            ? query.split(',').map(t => t.trim().toLowerCase())
             : [];
           results = await searchPosts(query, undefined, tags, filter);
         }
@@ -55,8 +56,8 @@ export default function PostList({ onSelectPost }: PostListProps) {
     return (
       <div className="p-10 border border-dashed border-gray-800 rounded-xl text-center">
         <p className="text-gray-400 text-sm">
-          {query 
-            ? `No se encontraron resultados para "${query}"` 
+          {query
+            ? `No se encontraron resultados para "${query}"`
             : 'Escribe un término en el buscador para empezar a explorar publicaciones.'}
         </p>
       </div>
@@ -73,11 +74,11 @@ export default function PostList({ onSelectPost }: PostListProps) {
 
       <ul className="space-y-3">
         {posts.map((post) => {
-          const statusColor = 
-            post.status === 'closed' 
-              ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-400' 
-              : post.is_pinned 
-                ? 'bg-amber-950/50 border border-amber-800 text-amber-400' 
+          const statusColor =
+            post.status === 'closed'
+              ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-400'
+              : post.is_pinned
+                ? 'bg-amber-950/50 border border-amber-800 text-amber-400'
                 : 'bg-blue-950/50 border border-blue-800 text-blue-400';
 
           return (
@@ -96,7 +97,7 @@ export default function PostList({ onSelectPost }: PostListProps) {
                   </span>
                 </div>
 
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectPost(post.id);
@@ -117,8 +118,8 @@ export default function PostList({ onSelectPost }: PostListProps) {
               {post.tags && post.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3.5">
                   {post.tags.map((tag) => (
-                    <span 
-                      key={tag} 
+                    <span
+                      key={tag}
                       className="px-2 py-0.5 bg-[#252525] border border-gray-800 rounded text-xs text-gray-400"
                     >
                       #{tag}
@@ -131,17 +132,26 @@ export default function PostList({ onSelectPost }: PostListProps) {
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 rounded-full bg-white border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
                     {post.author?.avatar_url ? (
-                      <img 
-                        src={post.author.avatar_url} 
-                        alt={post.author.username || 'Avatar'} 
-                        className="w-full h-full object-cover" 
+                      <img
+                        src={post.author.avatar_url}
+                        alt={post.author.username || 'Avatar'}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full bg-white" />
                     )}
                   </div>
-                  <div>
-                    Por <span className="font-semibold text-gray-300">{post.author?.username || 'Anónimo'}</span>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      Por <span className="font-semibold text-gray-300">{post.author?.username || 'Anónimo'}</span>
+                    </div>
+                    {/* Badge del Módulo 4 */}
+                    {post.author && (
+                      <UserBadge
+                        reputation={post.author.reputation || 0}
+                        role={post.author.role || 'regular'}
+                      />
+                    )}
                   </div>
                 </div>
 

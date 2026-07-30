@@ -1,6 +1,6 @@
 import { Post, Reply, PostLink, User, Community } from '@/lib/types';
 import { getLinkMetadata } from '../actions/links';
-import { createClient } from '@/lib/db/server'; 
+import { createClient } from '@/lib/db/server';
 
 //(eliminar al pasar a la base de datos real)
 const MOCK_USER = {
@@ -33,8 +33,8 @@ export type DatabaseUser = Partial<User> & { id: string; username: string; avata
 export type DatabasePostLink = PostLink;
 
 export type DatabaseReply = Reply & {
-  author?: DatabaseUser; 
-  nestedReplies?: DatabaseReply[]; 
+  author?: DatabaseUser;
+  nestedReplies?: DatabaseReply[];
 };
 
 export type UnifiedPost = Omit<Post, 'status'> & {
@@ -42,10 +42,10 @@ export type UnifiedPost = Omit<Post, 'status'> & {
   author: DatabaseUser;
   community?: Community;
   community_name?: string;
-  tags: string[]; 
+  tags: string[];
   links: DatabasePostLink[];
   replies: DatabaseReply[];
-  votes_count: number; 
+  votes_count: number;
   replies_count: number;
 };
 
@@ -72,16 +72,16 @@ function buildReplyTree(flatReplies: any[]): DatabaseReply[] {
 
 export async function getThread(id: string): Promise<UnifiedPost | null> {
   const supabase = await createClient();
-  
+
   const { data, error } = await supabase
     .from('posts')
     .select(`
       *,
-      author:users(id, username, avatar_url),
+      author:users(id, username, avatar_url, reputation, role),
       communities(name),
       links:post_links(*),
       post_tags(tag:tags(name)),
-      replies(*, author:users(id, username, avatar_url))
+      replies(*, author:users(id, username, avatar_url, reputation, role))
     `)
     .eq('id', id)
     .single();
@@ -108,7 +108,7 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
 
 export async function createPost(formData: FormData): Promise<ActionResponse> {
   const supabase = await createClient();
-  
+
   // Obtener sesión del usuario (Autenticación real)
   const { data: { user } } = await supabase.auth.getUser();
   //if (!user) return { success: false, error: 'Debes iniciar sesión para publicar.' };
@@ -131,17 +131,17 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
       role: MOCK_USER.role,
       reputation: MOCK_USER.reputation
     }, { onConflict: 'id' });
-  
+
     // pruebas mocks para verificar que funcione la select de comunidades al crear (eliminar al pasar a la base de datos real)
     const communityInfo = MOCK_COMMUNITIES_MAP[communityId] || { name: 'General', slug: 'general' };
-    
+
     await supabase.from('communities').upsert({
-    id: communityId,
-    name: communityInfo.name,
-    slug: communityInfo.slug,
-    description: `Comunidad ${communityInfo.name} para pruebas`,
-    created_by: userId
-  }, { onConflict: 'id' });
+      id: communityId,
+      name: communityInfo.name,
+      slug: communityInfo.slug,
+      description: `Comunidad ${communityInfo.name} para pruebas`,
+      created_by: userId
+    }, { onConflict: 'id' });
   }
 
   const { data: newPost, error: postError } = await supabase
@@ -157,15 +157,15 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
     .single();
 
   if (postError) {
-      console.error("Error insertando post:", postError);
-      return { success: false, error: 'Error al crear la publicación.' };
+    console.error("Error insertando post:", postError);
+    return { success: false, error: 'Error al crear la publicación.' };
   }
 
   if (tagsInput) {
     const tagsArray = tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
     for (const tagName of tagsArray) {
-      let {data: existingTag} = await supabase.from('tags').select('id').eq('name',tagName).single();
+      let { data: existingTag } = await supabase.from('tags').select('id').eq('name', tagName).single();
       let tagId = existingTag?.id;
 
       if (!tagId) {
@@ -173,7 +173,7 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
         tagId = newTag?.id;
       }
 
-       if (tagId) {
+      if (tagId) {
         await supabase.from('post_tags').insert({ post_id: newPost.id, tag_id: tagId });
       }
     }
@@ -209,14 +209,14 @@ export async function createPost(formData: FormData): Promise<ActionResponse> {
 
 export async function search(term: string = '', community?: string, tags?: string[], filter?: string): Promise<UnifiedPost[]> {
   const supabase = await createClient();
-  
+
   const cleanTerm = term?.startsWith('#') ? term.slice(1).trim() : term?.trim() || '';
 
   let query = supabase
     .from('posts')
     .select(`
       *,
-      author:users(id, username),
+      author:users(id, username, avatar_url, reputation, role),
       communities(name),
       post_tags(tag:tags(name)),
       replies(id)
@@ -238,7 +238,7 @@ export async function search(term: string = '', community?: string, tags?: strin
         .from('post_tags')
         .select('post_id')
         .in('tag_id', matchedTagIds);
-      
+
       matchedPostIdsFromTags = ptData?.map((pt: any) => pt.post_id) || [];
     }
 
@@ -283,7 +283,7 @@ export async function getPosts(filter?: string): Promise<UnifiedPost[]> {
 
 export async function addReply(postId: string, parentId: string | null, content: string): Promise<ActionResponse> {
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
   //if (!user) return { success: false, error: 'Debes iniciar sesión para responder.' };
 
@@ -308,9 +308,38 @@ export async function addReply(postId: string, parentId: string | null, content:
   });
 
   if (error) {
-      console.error("Error insertando respuesta:", error);
-      return { success: false, error: 'No se pudo guardar la respuesta.' };
+    console.error("Error insertando respuesta:", error);
+    return { success: false, error: 'No se pudo guardar la respuesta.' };
   }
-  
+
   return { success: true, message: 'Respuesta guardada con éxito.' };
+}
+
+export async function getPostsByUser(userId: string): Promise<UnifiedPost[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      author:users(id, username, avatar_url, reputation, role),
+      communities(name),
+      post_tags(tag:tags(name)),
+      replies(id)
+    `)
+    .eq('author_id', userId)
+    .eq('is_hidden', false)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((post: any) => ({
+    ...post,
+    community_name: post.communities?.name || 'General',
+    tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
+    replies: [],
+    links: [],
+    replies_count: post.replies ? post.replies.length : 0,
+    votes_count: 0
+  }));
 }
