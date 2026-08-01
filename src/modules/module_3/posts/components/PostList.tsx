@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { searchPosts } from '@module_3/search/actions/search';
-import { getPostsAction } from '@module_3/posts/actions/post';
 import { addReplyAction } from '@module_3/posts/actions/reply';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
 import VoteManager from '@module_4/votes/components/VoteManager';
@@ -349,49 +347,13 @@ export function PostCard({
 }
 
 export interface PostListProps {
+  posts: UnifiedPost[];
   onSelectPost?: (id: string) => void;
 }
 
-export default function PostList({ onSelectPost }: PostListProps) {
+export default function PostList({ posts, onSelectPost }: PostListProps) {
   const searchParams = useSearchParams();
-  const [posts, setPosts] = useState<UnifiedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const query = searchParams.get('q') || '';
-  const filter = searchParams.get('filter') || 'respondidos';
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        let results: UnifiedPost[] = [];
-        if (query.trim() === '') {
-          results = await getPostsAction(filter);
-        } else {
-          const tags = query.includes(',')
-            ? query.split(',').map(t => t.trim().toLowerCase())
-            : [];
-          results = await searchPosts(query, undefined, tags, filter);
-        }
-        setPosts(results);
-      } catch (error) {
-        console.error("Error al cargar publicaciones:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPosts();
-  }, [query, filter]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-3">
-        <div className="w-8 h-8 border-4 border-main-blue border-t-transparent rounded-full animate-spin"></div>
-        <p className="font-candal font-normal text-p text-alpha-black">Cargando publicaciones...</p>
-      </div>
-    );
-  }
 
   if (posts.length === 0) {
     return (

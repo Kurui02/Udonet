@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
@@ -14,6 +14,7 @@ import { PostCard } from './PostList';
 
 interface ThreadViewProp {
   threadId: string;
+  initialThread: UnifiedPost | null;
   onBack: () => void;
 }
 
@@ -229,10 +230,10 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
   );
 }
 
-export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
+export default function ThreadView({ threadId, initialThread, onBack }: ThreadViewProp) {
   const router = useRouter();
-  const [thread, setThread] = useState<UnifiedPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [thread, setThread] = useState<UnifiedPost | null>(initialThread);
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [showMainReplyBox, setShowMainReplyBox] = useState(false);
@@ -244,15 +245,13 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
     router.push(`/?q=${encodeURIComponent(cleanTag)}`);
   };
 
+  // Only used to refresh replies after posting — not for initial load
   const loadData = async () => {
+    setLoading(true);
     const data = await getThread(threadId);
     setThread(data);
     setLoading(false);
   };
-
-  useEffect(() => {
-    loadData();
-  }, [threadId]);
 
   const handleMainReplySubmit = (e: React.FormEvent) => {
     e.preventDefault();
