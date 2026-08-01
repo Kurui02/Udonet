@@ -17,7 +17,7 @@ export type DatabaseReply = Reply & {
 };
 
 export type UnifiedPost = Omit<Post, 'status'> & {
-  status: 'open' | 'closed' | 'abierto' | 'cerrado';
+  status: 'open' | 'closed';
   author: DatabaseUser;
   community?: Community;
   community_name?: string;
