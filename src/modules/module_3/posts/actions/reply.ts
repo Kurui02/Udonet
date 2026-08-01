@@ -54,7 +54,6 @@ export async function addReplyAction(postId: string, parentId: string | null, co
         }
         return result;
     } catch (error) {
-        console.error("Error al guardar respuesta:", error);
         return { success: false, error: "No se pudo guardar la respuesta en la base de datos." };
     }
 }

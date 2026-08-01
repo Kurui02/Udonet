@@ -21,7 +21,6 @@ export async function getPostsByUserAction(userId: string): Promise<UnifiedPost[
     if (!userId) throw new Error("El userId es requerido");
     return await getPostsByUser(userId);
   } catch (error) {
-    console.error("Error obteniendo los posts del usuario:", error);
     return [];
   }
 }
@@ -35,15 +34,12 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
       name: community.name,
     }));
   } catch (error) {
-    console.error("Error al obtener las comunidades del usuario:", error);
-
     try {
       const generalCommunity = await getCommunityBySlug("temas-generales");
       if (generalCommunity) {
         return [{ id: generalCommunity.id, name: generalCommunity.name }];
       }
     } catch (fallbackError) {
-      console.error("Error al buscar la comunidad General:", fallbackError);
     }
 
     return [{ id: "00000000-0000-0000-0000-000000000002", name: "General" }];
@@ -97,7 +93,6 @@ export async function createPostAction(formData: FormData | {
         };
       }
     } catch (subError) {
-      console.warn("Validación de membresía ignorada en dev:", subError);
     }
 
     const result = await createPost(payload);
@@ -107,7 +102,6 @@ export async function createPostAction(formData: FormData | {
     }
     return result;
   } catch (error) {
-    console.error("Error en createPostAction:", error);
     return { success: false, error: "Error interno al conectar con la base de datos." };
   }
 }
@@ -116,7 +110,6 @@ export async function getPostsAction(filter?: string): Promise<UnifiedPost[]> {
   try {
     return await getPosts(filter);
   } catch (error) {
-    console.error("Error en getPostsAction:", error);
     return [];
   }
 }

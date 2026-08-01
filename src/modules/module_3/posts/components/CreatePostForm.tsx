@@ -74,7 +74,6 @@ export default function CreatePostModal({
       const data = (await getLinkMetadata(url)) as { success?: number; meta?: LinkMetadata };
       if (data.success === 1 && data.meta) setMetadata(data.meta);
     } catch (error) {
-      console.error("Error al obtener la vista previa:", error);
     } finally {
       setLoading(false);
     }
@@ -117,7 +116,6 @@ export default function CreatePostModal({
         setStatusMessage({ success: false, text: response.error || "Ocurrió un error." });
       }
     } catch (error) {
-      console.error(error);
       setStatusMessage({ success: false, text: "Error de red al conectar con el servidor." });
     }
   };

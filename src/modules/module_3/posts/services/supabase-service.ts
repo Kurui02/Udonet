@@ -67,7 +67,6 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
     .single();
 
   if (error || !data) {
-    console.error('Error en Supabase getThread:', error);
     return null;
   }
 
@@ -138,7 +137,6 @@ export async function createPost(formData: FormData | { title: string; content?:
     .single();
 
   if (postError) {
-    console.error("Error insertando post:", postError);
     return { success: false, error: 'Error al crear la publicación.' };
   }
 
@@ -173,7 +171,6 @@ export async function createPost(formData: FormData | { title: string; content?:
         linkImg = metaRes.meta.image?.url;
       }
     } catch (e) {
-      console.error("Error obteniendo metadata del enlace en el servidor:", e);
     }
 
     await supabase.from('post_links').insert({
@@ -279,7 +276,6 @@ export async function addReply(postId: string, parentId: string | null, content:
   });
 
   if (error) {
-    console.error("Error insertando respuesta:", error);
     return { success: false, error: 'No se pudo guardar la respuesta.' };
   }
 
