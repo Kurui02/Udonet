@@ -54,6 +54,8 @@ export interface CreatePostPayload {
 export async function getThread(id: string): Promise<UnifiedPost | null> {
   const supabase = await createClient();
 
+  // EXCEPCIÓN DE ARQUITECTURA / RENDIMIENTO:
+  // JOIN cruzado con `users` (Módulo 1) y `communities` (Módulo 2) para evitar N+1 queries.
   const { data, error } = await supabase
     .from('posts')
     .select(`
@@ -177,6 +179,8 @@ export async function search(term: string = '', community?: string, tags?: strin
 
   const cleanTerm = term?.startsWith('#') ? term.slice(1).trim() : term?.trim() || '';
 
+  // EXCEPCIÓN DE ARQUITECTURA / RENDIMIENTO:
+  // JOIN cruzado con `users` (Módulo 1) y `communities` (Módulo 2) para evitar N+1 queries.
   let query = supabase
     .from('posts')
     .select(`
@@ -248,6 +252,8 @@ export async function getPosts(filter?: string): Promise<UnifiedPost[]> {
 export async function getPostsByUser(userId: string): Promise<UnifiedPost[]> {
   const supabase = await createClient();
 
+  // EXCEPCIÓN DE ARQUITECTURA / RENDIMIENTO:
+  // JOIN cruzado con `users` (Módulo 1) y `communities` (Módulo 2) para evitar N+1 queries.
   const { data, error } = await supabase
     .from('posts')
     .select(`
