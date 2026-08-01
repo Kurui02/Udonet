@@ -1,6 +1,6 @@
 'use server';
 
-import { search, UnifiedPost } from '@module_3/posts/services/supabase-service';
+import { search, UnifiedPost } from '@module_3/posts/services/post.service';
 
 export async function searchPosts(term: string = '', community?: string, tags?: string[], filter: string = 'most_replied'): Promise<UnifiedPost[]> {
     try {

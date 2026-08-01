@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addReply } from '@module_3/posts/services/supabase-service';
+import { addReply } from '@module_3/posts/services/reply.service';
 import { createNotification } from '@module_4/notifications/exports';
 import { createClient } from '@/lib/db/server';
 

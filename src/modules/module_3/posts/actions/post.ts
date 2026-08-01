@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/supabase-service";
+import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/post.service";
+import { getLinkMetadata } from "./links";
 import { Community } from "@/lib/types";
 import { 
   getUserMainCommunities, 
@@ -95,7 +96,29 @@ export async function createPostAction(formData: FormData | {
     } catch (subError) {
     }
 
-    const result = await createPost(payload);
+    let linkMetadata: { title?: string | null; description?: string | null; image_url?: string | null } | undefined = undefined;
+    const detectedUrl = payload.links && payload.links.length > 0 ? payload.links[0] : undefined;
+
+    if (detectedUrl) {
+      try {
+        const metaRes = (await getLinkMetadata(detectedUrl)) as { success: number; meta?: { title?: string; description?: string; image?: { url?: string } } };
+        if (metaRes.success === 1 && metaRes.meta) {
+          linkMetadata = {
+            title: metaRes.meta.title || null,
+            description: metaRes.meta.description || null,
+            image_url: metaRes.meta.image?.url || null,
+          };
+        }
+      } catch (e) {
+        // metadata fetch failure ignored
+      }
+    }
+
+    const result = await createPost({
+      ...payload,
+      detectedUrl,
+      linkMetadata,
+    });
 
     if (result.success) {
       revalidatePath("/");
