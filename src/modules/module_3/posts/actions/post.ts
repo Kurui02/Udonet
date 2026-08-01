@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/supabase-service";
+import { Community } from "@/lib/types";
 import { 
   getUserMainCommunities, 
   getCommunityBySlug,
@@ -29,7 +30,7 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
   try {
     const mainCommunities = await getUserMainCommunities(MOCK_USER_ID);
 
-    return (mainCommunities || []).map((community: any) => ({
+    return (mainCommunities || []).map((community: Community) => ({
       id: community.id,
       name: community.name,
     }));

@@ -29,7 +29,7 @@ export type UnifiedPost = Omit<Post, 'status'> & {
 };
 
 // Construye el árbol jerárquico de respuestas N-ario en O(n) indexando con Map O(1)
-function buildReplyTree(flatReplies: any[]): DatabaseReply[] {
+function buildReplyTree(flatReplies: { id: string; parent_id: string | null; [key: string]: unknown }[]): DatabaseReply[] {
   const replyMap = new Map<string, DatabaseReply>();
   const roots: DatabaseReply[] = [];
 
@@ -71,7 +71,7 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
     return null;
   }
 
-  const formattedTags = data.post_tags?.map((pt: any) => pt.tag.name) || [];
+  const formattedTags = data.post_tags?.map((pt: { tag: { name: string } }) => pt.tag.name) || [];
 
   const post: UnifiedPost = {
     ...data,
@@ -86,7 +86,7 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
   return post;
 }
 
-export async function createPost(formData: FormData | any): Promise<ActionResponse> {
+export async function createPost(formData: FormData | { title: string; content?: string; communityId?: string; community_id?: string; tags?: string[]; links?: string[] }): Promise<ActionResponse> {
   const supabase = await createClient();
 
   // Obtener usuario autenticado de la sesión
@@ -166,7 +166,7 @@ export async function createPost(formData: FormData | any): Promise<ActionRespon
     let linkImg = null;
 
     try {
-      const metaRes = await getLinkMetadata(detectedUrl) as any;
+      const metaRes = await getLinkMetadata(detectedUrl) as { success: number; meta?: { title?: string; description?: string; image?: { url?: string } } };
       if (metaRes.success === 1 && metaRes.meta) {
         linkTitle = metaRes.meta.title;
         linkDesc = metaRes.meta.description;
@@ -211,7 +211,7 @@ export async function search(term: string = '', community?: string, tags?: strin
       .select('id')
       .ilike('name', `%${cleanTerm}%`);
 
-    const matchedTagIds = matchedTags?.map((t: any) => t.id) || [];
+    const matchedTagIds = matchedTags?.map((t: { id: string }) => t.id) || [];
     let matchedPostIdsFromTags: string[] = [];
 
     if (matchedTagIds.length > 0) {
@@ -220,7 +220,7 @@ export async function search(term: string = '', community?: string, tags?: strin
         .select('post_id')
         .in('tag_id', matchedTagIds);
 
-      matchedPostIdsFromTags = ptData?.map((pt: any) => pt.post_id) || [];
+      matchedPostIdsFromTags = ptData?.map((pt: { post_id: string }) => pt.post_id) || [];
     }
 
     if (matchedPostIdsFromTags.length > 0) {
@@ -235,10 +235,11 @@ export async function search(term: string = '', community?: string, tags?: strin
 
   if (error || !data) return [];
 
-  let formattedData: UnifiedPost[] = data.map((post: any) => ({
+  type RawPostRow = { communities?: { name: string } | null; post_tags?: { tag: { name: string } }[]; links?: DatabasePostLink[]; replies?: { id: string }[]; created_at: string; [key: string]: unknown };
+  let formattedData: UnifiedPost[] = data.map((post: RawPostRow) => ({
     ...post,
     community_name: post.communities?.name || 'General',
-    tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
+    tags: post.post_tags?.map((pt: { tag: { name: string } }) => pt.tag.name) || [],
     replies: [],
     links: post.links || [],
     replies_count: post.replies ? post.replies.length : 0,
@@ -304,10 +305,10 @@ export async function getPostsByUser(userId: string): Promise<UnifiedPost[]> {
 
   if (error || !data) return [];
 
-  return data.map((post: any) => ({
+  return data.map((post: RawPostRow) => ({
     ...post,
     community_name: post.communities?.name || 'General',
-    tags: post.post_tags?.map((pt: any) => pt.tag.name) || [],
+    tags: post.post_tags?.map((pt: { tag: { name: string } }) => pt.tag.name) || [],
     replies: [],
     links: post.links || [],
     replies_count: post.replies ? post.replies.length : 0,
