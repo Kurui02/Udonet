@@ -43,7 +43,7 @@ export function PostCard({
   const communityBreadcrumb = `F / ${post.community_name || 'General'}`;
   const relativeDate = formatDate(post.created_at);
 
-  const filter = searchParams.get('filter') || 'respondidos';
+  const filter = searchParams.get('filter') || 'most_replied';
 
   // Si tiene link detectado tomamos el primero
   const firstLink = post.links && post.links.length > 0 ? post.links[0] : null;
