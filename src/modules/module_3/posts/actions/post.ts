@@ -1,14 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/supabase-service";
-import { 
-  getUserMainCommunities, 
-  getCommunityBySlug,
-  isUserSubscribed 
+import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/post.service";
+import { getLinkMetadata } from "./links";
+import {
+  getUserMainCommunities,
+  isUserSubscribed
 } from "@module_2/communities/exports";
+import { getCurrentUser, getCurrentUserId } from "@module_1/auth/exports";
 
-const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001';
+import { isValidUrl } from "./validateUrl";
+import { getUserSubcommunities } from "@/modules/module_2/communities/services/community.service";
 
 export interface CommunityOption {
   id: string;
@@ -20,32 +22,46 @@ export async function getPostsByUserAction(userId: string): Promise<UnifiedPost[
     if (!userId) throw new Error("El userId es requerido");
     return await getPostsByUser(userId);
   } catch (error) {
-    console.error("Error obteniendo los posts del usuario:", error);
     return [];
   }
 }
 
 export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[]> {
   try {
-    const mainCommunities = await getUserMainCommunities(MOCK_USER_ID);
+    const currentUserId = await getCurrentUserId()
+    if (!currentUserId) return []
 
-    return (mainCommunities || []).map((community: any) => ({
-      id: community.id,
-      name: community.name,
-    }));
-  } catch (error) {
-    console.error("Error al obtener las comunidades del usuario:", error);
+    const mainCommunities = await getUserMainCommunities(currentUserId)
 
-    try {
-      const generalCommunity = await getCommunityBySlug("temas-generales");
-      if (generalCommunity) {
-        return [{ id: generalCommunity.id, name: generalCommunity.name }];
+    const allCommunities: CommunityOption[] = []
+
+    for (const main of mainCommunities) {
+      allCommunities.push({ id: main.id, name: main.name })
+      const subs = await getUserSubcommunities(currentUserId, main.id)
+      for (const sub of subs) {
+        allCommunities.push({ id: sub.id, name: `${sub.name}(${main.name})` })
       }
-    } catch (fallbackError) {
-      console.error("Error al buscar la comunidad General:", fallbackError);
     }
 
-    return [{ id: "00000000-0000-0000-0000-000000000002", name: "General" }];
+    return allCommunities
+  } catch {
+    return []
+  }
+}
+
+export interface CurrentUserDisplay {
+  username: string;
+  avatarUrl: string | null;
+}
+
+/** Devuelve los datos del usuario autenticado que necesita el modal de creación de posts. */
+export async function getCurrentUserDisplayAction(): Promise<CurrentUserDisplay | null> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return null;
+    return { username: user.username, avatarUrl: user.avatar_url ?? null };
+  } catch (error) {
+    return null;
   }
 }
 
@@ -83,30 +99,71 @@ export async function createPostAction(formData: FormData | {
       return { success: false, error: "El título es obligatorio." };
     }
 
+    if (payload.title.trim().length > 150) {
+      return { success: false, error: "El título no puede tener más de 150 caracteres." };
+    }
+
+    if (payload.content && payload.content.length > 3000) {
+      return { success: false, error: "El contenido no puede tener más de 3000 caracteres." };
+    }
+
+    if (payload.links && payload.links.length > 0) {
+      for (const link of payload.links) {
+        if (!isValidUrl(link)) {
+          return { success: false, error: "La URL del enlace adjunto no es válida." };
+        }
+      }
+    }
+
     if (!payload.communityId) {
       return { success: false, error: "Debes seleccionar una comunidad." };
     }
 
+    const currentUserId = await getCurrentUserId();
+    if (!currentUserId) {
+      return { success: false, error: "Debes iniciar sesión para publicar." };
+    }
+
     try {
-      const hasMembership = await isUserSubscribed(MOCK_USER_ID, payload.communityId);
+      const hasMembership = await isUserSubscribed(currentUserId, payload.communityId);
       if (!hasMembership) {
-        return { 
-          success: false, 
-          error: "Debes estar suscrito a esta comunidad para poder publicar en ella." 
+        return {
+          success: false,
+          error: "Debes estar suscrito a esta comunidad para poder publicar en ella."
         };
       }
     } catch (subError) {
-      console.warn("Validación de membresía ignorada en dev:", subError);
     }
 
-    const result = await createPost(payload);
+    let linkMetadata: { title?: string | null; description?: string | null; image_url?: string | null } | undefined = undefined;
+    const detectedUrl = payload.links && payload.links.length > 0 ? payload.links[0] : undefined;
+
+    if (detectedUrl) {
+      try {
+        const metaRes = (await getLinkMetadata(detectedUrl)) as { success: number; meta?: { title?: string; description?: string; image?: { url?: string } } };
+        if (metaRes.success === 1 && metaRes.meta) {
+          linkMetadata = {
+            title: metaRes.meta.title || null,
+            description: metaRes.meta.description || null,
+            image_url: metaRes.meta.image?.url || null,
+          };
+        }
+      } catch (e) {
+        // metadata fetch failure ignored
+      }
+    }
+
+    const result = await createPost({
+      ...payload,
+      detectedUrl,
+      linkMetadata,
+    });
 
     if (result.success) {
       revalidatePath("/");
     }
     return result;
   } catch (error) {
-    console.error("Error en createPostAction:", error);
     return { success: false, error: "Error interno al conectar con la base de datos." };
   }
 }
@@ -115,7 +172,6 @@ export async function getPostsAction(filter?: string): Promise<UnifiedPost[]> {
   try {
     return await getPosts(filter);
   } catch (error) {
-    console.error("Error en getPostsAction:", error);
     return [];
   }
 }

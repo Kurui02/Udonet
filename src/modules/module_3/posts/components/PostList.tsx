@@ -1,37 +1,43 @@
 "use client";
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { searchPosts } from '@module_3/search/actions/search';
-import { getPostsAction } from '@module_3/posts/actions/post';
 import { addReplyAction } from '@module_3/posts/actions/reply';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
-import VoteManager from '@module_4/votes/components/VoteManager';
 import UserBadge from '@module_4/reputation/components/UserBadge';
 import UserAvatar from '../../components/UserAvatar';
 import Toast from '../../components/Toast';
 import {
   PaperPlaneIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CommentIcon,
+  UpvoteIcon,
+  DownvoteIcon
 } from '../../components/icons';
 import { formatDate } from '@/lib/utils/formatDate';
+import { ReportModal } from '@/modules/module_5/reports/components/ReportModal';
+import { createReportAction } from '@/modules/module_5/reports/actions/create-report.action';
 
 export interface PostCardProps {
   post: UnifiedPost;
   onSelectPost?: (id: string) => void;
   isThreadView?: boolean;
+  isCompact?: boolean;
   onMainReplyClick?: () => void;
   showMainReplyBox?: boolean;
   onTagClick?: (tag: string) => void;
+  currentUserId?: string | null;
 }
 
 export function PostCard({
   post,
   onSelectPost,
   isThreadView = false,
+  isCompact = false,
   onMainReplyClick,
   showMainReplyBox = false,
-  onTagClick
+  onTagClick,
+  currentUserId
 }: PostCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,13 +45,14 @@ export function PostCard({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showAllTags, setShowAllTags] = useState(false);
   const [quickReply, setQuickReply] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const authorName = post.author?.username || 'Anónimo';
-  const authorCareer = post.author?.bio || 'Carrera';
   const communityBreadcrumb = `F / ${post.community_name || 'General'}`;
   const relativeDate = formatDate(post.created_at);
 
-  const filter = searchParams.get('filter') || 'respondidos';
+  const filter = searchParams.get('filter') || 'most_replied';
 
   // Si tiene link detectado tomamos el primero
   const firstLink = post.links && post.links.length > 0 ? post.links[0] : null;
@@ -83,8 +90,8 @@ export function PostCard({
   const visibleTags = hasManyTags ? tags.slice(0, 2) : tags;
 
   return (
-    <article className="bg-pure-white rounded-[30px] p-6 transition-all font-candal font-normal relative">
-      
+    <article className={`bg-pure-white transition-all font-candal font-normal relative ${isCompact ? 'rounded-2xl p-4 shadow-sm' : 'rounded-[30px] p-6'}`}>
+
       {toast && (
         <Toast
           message={toast.message}
@@ -94,10 +101,10 @@ export function PostCard({
       )}
 
       {/* Cabecera del post */}
-      <div className="-mx-6 px-6 pt-1 pb-4 mb-4 border-b border-white-gray flex items-center justify-between gap-4">
+      <div className={`border-b border-white-gray flex items-center justify-between gap-3 min-w-0 ${isCompact ? '-mx-4 px-4 pt-0.5 pb-2.5 mb-3' : '-mx-6 px-6 pt-1 pb-4 mb-4'}`}>
         <h2
           onClick={() => onSelectPost && onSelectPost(post.id)}
-          className="font-candal font-normal text-h4 text-main-black hover:text-main-blue transition-colors cursor-pointer leading-tight flex-1"
+          className={`font-candal font-normal text-main-black hover:text-main-blue transition-colors cursor-pointer leading-tight flex-1 min-w-0 break-words [overflow-wrap:anywhere] ${isCompact ? 'text-h5' : 'text-h4'}`}
         >
           {post.title}
         </h2>
@@ -120,28 +127,50 @@ export function PostCard({
           <span className="font-candal font-normal text-tiny text-alpha-black">
             {communityBreadcrumb}
           </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setToast({ message: 'Opciones de publicación', type: 'info' });
-            }}
-            className="font-candal font-normal text-p text-alpha-black hover:text-main-black cursor-pointer bg-transparent border-0 px-1"
-          >
-            •••
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(!isMenuOpen);
+              }}
+              className="font-candal font-normal text-p text-alpha-black hover:text-main-black cursor-pointer bg-transparent border-0 px-1"
+              aria-label="Opciones"
+            >
+              •••
+            </button>
+
+            {isMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 w-44 bg-pure-white border border-white-gray rounded-[16px] shadow-lg z-50 overflow-hidden font-candal font-normal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsReportModalOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-tiny text-deep-orange hover:bg-lite-white transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-2"
+                >
+                  <span>🚩</span>
+                  <span>Reportar</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Fila del autor */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-start gap-4">
-          <div className="mt-[3px] shrink-0">
-            <UserAvatar avatarUrl={post.author?.avatar_url} username={authorName} size="w-[50px] h-[50px]" />
+      <div className={`flex items-center justify-between gap-3 min-w-0 ${isCompact ? 'mb-2.5' : 'mb-4'}`}>
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="mt-[2px] shrink-0">
+            <UserAvatar avatarUrl={post.author?.avatar_url} username={authorName} size={isCompact ? 'w-[36px] h-[36px]' : 'w-[50px] h-[50px]'} />
           </div>
 
-          <div className="flex flex-col space-y-[7px]">
-            <h4 className="font-candal font-normal text-h4 text-main-black leading-tight m-0 p-0">
+          <div className="flex flex-col space-y-[3px] min-w-0">
+            <h4 className={`font-candal font-normal text-main-black leading-tight m-0 p-0 break-words min-w-0 ${isCompact ? 'text-p font-bold' : 'text-h4'}`}>
               {authorName}
             </h4>
 
@@ -153,10 +182,6 @@ export function PostCard({
                 />
               </div>
             )}
-
-            <h5 className="font-candal font-normal text-h5 text-alpha-black leading-tight m-0 p-0">
-              {authorCareer}
-            </h5>
           </div>
         </div>
 
@@ -221,7 +246,7 @@ export function PostCard({
 
       {/* Contenido */}
       {post.content && (
-        <p className={`font-candal font-normal text-p text-lite-black leading-relaxed mb-4 ${isThreadView ? 'whitespace-pre-wrap' : 'line-clamp-3'}`}>
+        <p className={`font-candal font-normal text-p text-lite-black leading-relaxed mb-4 break-words [overflow-wrap:anywhere] ${isThreadView ? 'whitespace-pre-wrap' : 'line-clamp-3'}`}>
           {post.content}
         </p>
       )}
@@ -229,20 +254,20 @@ export function PostCard({
       {/* Previsualización del enlace en la tarjeta */}
       {firstLink && (
         <div className="mt-3 mb-4">
-          <a 
-            href={firstLink.url} 
-            target="_blank" 
-            rel="noopener noreferrer" 
+          <a
+            href={firstLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="flex items-center overflow-hidden bg-lite-white rounded-[20px] hover:bg-white-gray/50 transition group p-3 gap-4 border-0"
           >
             {firstLink.image_url && (
               <div className="relative w-28 h-20 sm:w-32 sm:h-20 flex-shrink-0 overflow-hidden rounded-[14px] bg-pure-white">
-                <img 
-                  src={firstLink.image_url} 
-                  alt={firstLink.title || 'Vista previa'} 
-                  className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" 
-                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} 
+                <img
+                  src={firstLink.image_url}
+                  alt={firstLink.title || 'Vista previa'}
+                  className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                 />
               </div>
             )}
@@ -290,29 +315,30 @@ export function PostCard({
       {/* Barra de acciones inferior */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-3">
-          <div onClick={(e) => e.stopPropagation()}>
-            <VoteManager
-              replyId={post.id}
-              initialVoteCount={post.votes_count || 0}
-              currentSessionUserId="00000000-0000-0000-0000-000000000001"
-              replyAuthorId={post.author_id || post.author?.id || ''}
-            />
+          {/* Contador de respuestas */}
+          <div 
+            className="px-3.5 py-1.5 rounded-full bg-lite-white border border-white-gray flex items-center gap-2 text-tiny font-candal font-normal text-main-black select-none"
+            title={`${post.replies_count ?? post.replies?.length ?? 0} ${(post.replies_count ?? post.replies?.length ?? 0) === 1 ? 'respuesta' : 'respuestas'}`}
+          >
+            <CommentIcon className="w-4 h-4 text-regular-blue shrink-0" />
+            <span>
+              {post.replies_count ?? post.replies?.length ?? 0} {(post.replies_count ?? post.replies?.length ?? 0) === 1 ? 'respuesta' : 'respuestas'}
+            </span>
           </div>
-
           {!isThreadView && post.status !== 'closed' && (
-            <form 
+            <form
               onSubmit={handleQuickReplySubmit}
               onClick={(e) => e.stopPropagation()}
               className="hidden sm:flex items-center bg-lite-white rounded-full border-2 border-main-blue w-64 h-[38px] overflow-hidden p-0 relative"
             >
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={quickReply}
                 onChange={(e) => setQuickReply(e.target.value)}
-                placeholder="Escribe una respuesta..." 
+                placeholder="Escribe una respuesta..."
                 className="bg-transparent border-0 text-tiny font-candal font-normal text-main-black placeholder:text-alpha-black focus:outline-none flex-1 pl-4 pr-2 min-w-0"
               />
-              <button 
+              <button
                 type="submit"
                 className="group/sendbtn h-[calc(100%+4px)] -mr-[2px] -my-[2px] aspect-square bg-main-blue hover:bg-dark-main-blue flex items-center justify-center border-0 text-pure-white cursor-pointer shrink-0 transition-all duration-200 rounded-full"
                 title="Enviar respuesta rápida"
@@ -324,10 +350,10 @@ export function PostCard({
         </div>
 
         {isThreadView ? (
-          <button 
+          <button
             type="button"
             disabled={post.status === 'closed'}
-            onClick={onMainReplyClick} 
+            onClick={onMainReplyClick}
             className="px-6 py-2.5 bg-regular-blue hover:bg-dark-main-blue disabled:opacity-50 text-pure-white font-candal font-normal text-p rounded-full transition-all cursor-pointer border-0 shadow-sm active:scale-95"
           >
             {post.status === 'closed' ? 'Hilo Cerrado' : showMainReplyBox ? 'Cancelar' : 'Responder al Hilo'}
@@ -344,54 +370,35 @@ export function PostCard({
         )}
       </div>
 
+      {/* Modal de Reporte del Módulo 5 */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        targetId={post.id}
+        targetType="post"
+        onClose={() => setIsReportModalOpen(false)}
+        onSubmitReport={async (reason, targetId) => {
+          const res = await createReportAction(targetId, 'post', reason);
+          if (res.success) {
+            setToast({ message: res.message || 'Reporte enviado a moderación.', type: 'success' });
+          } else {
+            setToast({ message: res.error || 'Error al enviar el reporte.', type: 'error' });
+          }
+        }}
+      />
+
     </article>
   );
 }
 
 export interface PostListProps {
+  posts: UnifiedPost[];
   onSelectPost?: (id: string) => void;
+  currentUserId?: string | null;
 }
 
-export default function PostList({ onSelectPost }: PostListProps) {
+export default function PostList({ posts, onSelectPost, currentUserId }: PostListProps) {
   const searchParams = useSearchParams();
-  const [posts, setPosts] = useState<UnifiedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const query = searchParams.get('q') || '';
-  const filter = searchParams.get('filter') || 'respondidos';
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        let results: UnifiedPost[] = [];
-        if (query.trim() === '') {
-          results = await getPostsAction(filter);
-        } else {
-          const tags = query.includes(',')
-            ? query.split(',').map(t => t.trim().toLowerCase())
-            : [];
-          results = await searchPosts(query, undefined, tags, filter);
-        }
-        setPosts(results);
-      } catch (error) {
-        console.error("Error al cargar publicaciones:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPosts();
-  }, [query, filter]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-3">
-        <div className="w-8 h-8 border-4 border-main-blue border-t-transparent rounded-full animate-spin"></div>
-        <p className="font-candal font-normal text-p text-alpha-black">Cargando publicaciones...</p>
-      </div>
-    );
-  }
 
   if (posts.length === 0) {
     return (
@@ -419,7 +426,7 @@ export default function PostList({ onSelectPost }: PostListProps) {
 
       <div className="space-y-6">
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} onSelectPost={onSelectPost} />
+          <PostCard key={post.id} post={post} onSelectPost={onSelectPost} currentUserId={currentUserId} />
         ))}
       </div>
     </div>

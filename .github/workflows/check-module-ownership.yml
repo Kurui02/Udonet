@@ -1,0 +1,166 @@
+name: Verificar propiedad de módulo
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  check-ownership:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar Rama y Archivos
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const integradores = [
+              'gabriel66-ux',
+              'neritoou',
+              'odetax',
+              'alephxd',
+              'digiorgio-l',
+              'dano-jp',
+              'kems0712'
+            ];
+
+            const author = context.payload.pull_request.user.login.toLowerCase();
+            const targetBranch = context.payload.pull_request.base.ref;
+            const sourceBranch = context.payload.pull_request.head.ref;
+
+            // Los integradores pueden tocar todo
+            if (integradores.includes(author)) {
+              console.log(`[PASS] ${author} es integrador, tiene acceso total.`);
+              return;
+            }
+
+            // Bloquear PRs de no-integradores hacia main
+            if (targetBranch === 'main') {
+              core.setFailed(
+                `[FAIL] ${author} no tiene permisos para crear PRs hacia main.\n` +
+                `Solo los integradores pueden mergear a main.\n` +
+                `Envía tu PR hacia develop.`
+              );
+              return;
+            }
+
+            // Bloquear PRs de no-integradores hacia ramas que no sean develop
+            if (targetBranch !== 'develop') {
+              core.setFailed(
+                `[FAIL] ${author} está intentando crear un PR hacia "${targetBranch}".\n` +
+                `Solo puedes crear PRs hacia develop.\n` +
+                `Cambia el destino de tu PR a develop.`
+              );
+              return;
+            }
+
+            // MAPA DE PERMISOS
+
+            const permisos = {
+              // Módulo 1 — Auth y Perfiles
+              'frednat23': {
+                branch: 'module_1/auth_&_profile',
+                paths: ['src/modules/module_1/']
+              },
+              'cristian1414': {
+                branch: 'module_1/auth_&_profile',
+                paths: ['src/modules/module_1/']
+              },
+              'sebato785': {
+                branch: 'module_1/auth_&_profile',
+                paths: ['src/modules/module_1/']
+              },
+
+              // Módulo 2 — Comunidades y Feed
+              'aguilera2509': {
+                branch: 'module_2/communities_&_feed',
+                paths: ['src/modules/module_2/']
+              },
+
+              // Módulo 3 — Publicaciones, Hilos y Buscador
+              'alecsoc': {
+                branch: 'module_3/posts_&_threads',
+                paths: ['src/modules/module_3/']
+              },
+              'kurui02': {
+                branch: 'module_3/posts_&_threads',
+                paths: ['src/modules/module_3/']
+              },
+
+              // Módulo 4 — Votación, Reputación y Notificaciones
+              'angelgrb0412': {
+                branch: 'module_4/votes_&_notifications',
+                paths: ['src/modules/module_4/']
+              },
+              'lui525': {
+                branch: 'module_4/votes_&_notifications',
+                paths: ['src/modules/module_4/']
+              },
+              'tenmyouji22': {
+                branch: 'module_4/votes_&_notifications',
+                paths: ['src/modules/module_4/']
+              },
+
+              // Módulo 5 — Moderación, Reportes y Advertencias
+              'gabo-skyder8': {
+                branch: 'module_5/moderation_&_reports',
+                paths: ['src/modules/module_5/']
+              },
+              'jkun016': {
+                branch: 'module_5/moderation_&_reports',
+                paths: ['src/modules/module_5/']
+              },
+              'abrasha06': {
+                branch: 'module_5/moderation_&_reports',
+                paths: ['src/modules/module_5/']
+              },
+            };
+
+            // Verificar que el usuario esté registrado
+            if (!permisos[author]) {
+              core.setFailed(
+                `[FAIL] El usuario "${author}" no está registrado en el mapa de permisos. ` +
+                `Contacta a los integradores para que te agreguen.`
+              );
+              return;
+            }
+
+            const config = permisos[author];
+
+            // Verificar rama de origen
+            if (sourceBranch !== config.branch) {
+              core.setFailed(
+                `[FAIL] ${author} está enviando un PR desde "${sourceBranch}".\n` +
+                `Tu rama asignada es: ${config.branch}\n` +
+                `Trabaja en tu rama y crea el PR desde ahí.`
+              );
+              return;
+            }
+
+            console.log(`[PASS] ${author} está trabajando desde su rama asignada.`);
+
+            // Verificar archivos modificados
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+
+            const archivosProhibidos = files
+              .map(f => f.filename)
+              .filter(filename => {
+                return !config.paths.some(path => filename.startsWith(path));
+              });
+
+            if (archivosProhibidos.length > 0) {
+              core.setFailed(
+                `[FAIL] ${author} modificó archivos fuera de su módulo:\n` +
+                archivosProhibidos.map(f => `  - ${f}`).join('\n') + '\n\n' +
+                `Solo puedes modificar archivos dentro de: ${config.paths.join(', ')}\n` +
+                `Remueve los archivos que no corresponden a tu módulo.`
+              );
+              return;
+            }
+
+            console.log(`[PASS] Todos los archivos están dentro del módulo asignado.`);

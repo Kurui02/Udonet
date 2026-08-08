@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/db/server'
-import type { Community } from '@/lib/types'
-
+import type { Community, User } from '@/lib/types'
 
 // --- LECTURA DE COMUNIDADES ---
 
@@ -101,6 +100,29 @@ export async function getCommunityMemberCount(communityId: string): Promise<numb
   return count ?? 0
 }
 
+/** Obtiene los usuarios suscritos a una comunidad o subcomunidad. */
+export async function getCommunityMembers(communityId: string): Promise<User[]> {
+  const supabase = await createClient()
+
+  const { data: memberships, error: memberError } = await supabase
+    .from('user_communities')
+    .select('user_id')
+    .eq('community_id', communityId)
+
+  if (memberError || !memberships?.length) return []
+
+  const userIds = memberships.map((m: { user_id: string }) => m.user_id)
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, username, avatar_url, role, reputation, bio')
+    .in('id', userIds)
+    .order('username')
+
+  if (error) return []
+  return data as User[]
+}
+
 /** Obtiene las comunidades principales a las que un usuario está suscrito. */
 export async function getUserMainCommunities(userId: string): Promise<Community[]> {
   const supabase = await createClient()
@@ -178,7 +200,7 @@ export async function updateSubcommunity(communityId: string, fields: { name?: s
     .from('communities')
     .update(fields)
     .eq('id', communityId)
-    .not('parent_id', 'is', null)
+    //.not('parent_id', 'is', null)
     .select()
     .single()
 

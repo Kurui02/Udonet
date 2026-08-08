@@ -1,12 +1,11 @@
 'use server'
 
-// Reemplazar mocks con imports reales cuando el Módulo 1 esté listo
-// import { getCurrentUser } from '@module_1/auth/exports'
-// import { getUserReputation } from '@module_1/profiles/exports'
-
+import { getCurrentUser } from '@module_1/auth/exports'
+import { getUserReputation } from '@module_1/profiles/exports'
+import { revalidatePath } from 'next/cache'
 import type { Community, UserRole } from '@/lib/types'
 import { generateSlug } from '@/lib/utils/generateSlug'
-import { uploadImage, deleteImage } from '@/lib/storage/server'
+import { IMAGE_PRESETS, uploadImage, replaceImage, deleteImage, deleteFolder } from '@/lib/storage/server'
 import {
   createSubcommunity,
   deleteSubcommunity,
@@ -23,23 +22,32 @@ import {
   updateCommunityBanner,
 } from '../services/community.service'
 
-const MIN_REPUTATION = 100
-const MAX_NAME_LENGTH = 50
-const MAX_DESCRIPTION_LENGTH = 500
-const MAX_MAIN_COMMUNITIES = 3
+import {
+  MIN_REPUTATION_TO_CREATE,
+  MAX_MAIN_COMMUNITIES,
+  MAX_NAME_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+} from '@/lib/constants/communities'
 
-// (!) --- Usuario mock ---
-const MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'test@test.com',
-  username: 'testuser',
-  avatar_url: null,
-  bio: null,
-  is_public: true,
-  role: 'regular' as UserRole,
-  reputation: 150,
-  created_at: new Date().toISOString(),
+/** Tipo genérico para respuestas de Server Actions. */
+export type ActionResult<T> =
+  | { data: T; error?: never }
+  | { error: string; data?: never }
+
+/** Invalida las rutas de caché relacionadas con una comunidad. */
+async function revalidateCommunityPath(community: Community): Promise<void> {
+  if (community.parent_id === null) {
+    revalidatePath('/communities')
+    revalidatePath(`/communities/${community.slug}`)
+  } else {
+    const parent = await getCommunityById(community.parent_id)
+    if (parent) {
+      revalidatePath(`/communities/${parent.slug}`)
+      revalidatePath(`/communities/${parent.slug}/${community.slug}`)
+    }
+  }
 }
+
 
 /** Verifica si el usuario puede gestionar una comunidad (creador, moderador o admin). */
 function canManageCommunity(community: Community, userId: string, role: UserRole): boolean {
@@ -48,20 +56,8 @@ function canManageCommunity(community: Community, userId: string, role: UserRole
 
 // --- SUBCOMUNIDADES ---
 
-/**
- * Crea una nueva subcomunidad dentro de una comunidad padre.
- *
- * Validaciones:
- * - El usuario debe estar autenticado.
- * - El nombre no debe estar vacío y no puede superar los 50 caracteres.
- * - La descripción no debe estar vacía y no puede superar los 500 caracteres.
- * - La comunidad padre debe existir y no puede ser una subcomunidad.
- * - El usuario debe pertenecer a la comunidad padre.
- * - El usuario debe tener al menos 100 de reputación.
- * - No puede existir otra subcomunidad con el mismo slug en el mismo padre.
- */
-export async function createSubcommunityAction(name: string,description: string, parentId: string) {
-  const user = MOCK_USER
+export async function createSubcommunityAction(name: string, description: string, parentId: string): Promise<ActionResult<Community>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión para crear una subcomunidad.' }
 
   const trimmedName = name.trim()
@@ -87,10 +83,8 @@ export async function createSubcommunityAction(name: string,description: string,
     return { error: 'Debes pertenecer a esta comunidad para crear una subcomunidad.' }
   }
 
-  // Reemplazar con reputación real cuando el Módulo 1 esté listo
-  const reputation = user.reputation
-  if (reputation < MIN_REPUTATION) {
-    return { error: `Necesitas al menos ${MIN_REPUTATION} de reputación para crear una subcomunidad.` }
+  if (user.reputation < MIN_REPUTATION_TO_CREATE) {
+    return { error: `Necesitas al menos ${MIN_REPUTATION_TO_CREATE} de reputación para crear una subcomunidad.` }
   }
 
   const slug = generateSlug(trimmedName)
@@ -116,25 +110,15 @@ export async function createSubcommunityAction(name: string,description: string,
   return { data: subcommunity }
 }
 
-/**
- * Actualiza una subcomunidad.
- *
- * Validaciones:
- * - El usuario debe estar autenticado.
- * - La comunidad debe existir y ser una subcomunidad.
- * - Solo el creador, un moderador o un admin pueden editarla.
- * - Nombre y descripción deben cumplir las reglas de longitud.
- * - Si el nombre cambia, el slug no puede duplicarse dentro del mismo padre.
- */
-export async function updateSubcommunityAction(communityId: string,name: string, description: string) {
-  const user = MOCK_USER
+export async function updateSubcommunityAction(communityId: string, name: string, description: string): Promise<ActionResult<Community>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión para editar una subcomunidad.' }
 
   const community = await getCommunityById(communityId)
   if (!community) return { error: 'La subcomunidad no fue encontrada.' }
-  if (community.parent_id === null) {
+  /*if (community.parent_id === null) {
     return { error: 'No se pueden editar las comunidades principales.' }
-  }
+  }*/
 
   if (!canManageCommunity(community, user.id, user.role)) {
     return { error: 'No tienes permisos para editar esta subcomunidad.' }
@@ -172,16 +156,8 @@ export async function updateSubcommunityAction(communityId: string,name: string,
   return { data: updated }
 }
 
-/**
- * Elimina una subcomunidad por su ID.
- *
- * Validaciones:
- * - El usuario debe estar autenticado.
- * - La comunidad debe existir y ser una subcomunidad.
- * - Solo el creador, un moderador o un admin pueden eliminarla.
- */
-export async function deleteSubcommunityAction(communityId: string) {
-  const user = MOCK_USER
+export async function deleteSubcommunityAction(communityId: string): Promise<ActionResult<true>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión para eliminar una subcomunidad.' }
 
   const community = await getCommunityById(communityId)
@@ -194,6 +170,9 @@ export async function deleteSubcommunityAction(communityId: string) {
     return { error: 'No tienes permisos para eliminar esta subcomunidad.' }
   }
 
+  // Limpiar toda la carpeta de la subcomunidad en el bucket
+  await deleteFolder(`communities/${communityId}`)
+
   const deleted = await deleteSubcommunity(communityId)
   if (!deleted) return { error: 'No se pudo eliminar la subcomunidad. Intenta de nuevo.' }
   return { data: true }
@@ -201,17 +180,8 @@ export async function deleteSubcommunityAction(communityId: string) {
 
 // --- MEMBRESÍAS ---
 
-/**
- * Suscribe al usuario a una comunidad o subcomunidad.
- *
- * Validaciones:
- * - El usuario debe estar autenticado.
- * - La comunidad debe existir.
- * - Para subcomunidades, el usuario debe pertenecer a la comunidad padre.
- * - Para comunidades principales, el máximo es 3.
- */
-export async function joinCommunityAction(communityId: string) {
-  const user = MOCK_USER
+export async function joinCommunityAction(communityId: string): Promise<ActionResult<true>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión para unirte a una comunidad.' }
 
   const community = await getCommunityById(communityId)
@@ -237,17 +207,8 @@ export async function joinCommunityAction(communityId: string) {
   return { data: true }
 }
 
-/**
- * Desuscribe al usuario de una comunidad o subcomunidad.
- *
- * Validaciones:
- * - El usuario debe estar autenticado.
- * - El usuario debe pertenecer a la comunidad.
- * - Si es comunidad principal, desuscribe de todas sus subcomunidades.
- * - Si es subcomunidad y el usuario es el creador, transfiere la propiedad a null.
- */
-export async function leaveCommunityAction(communityId: string) {
-  const user = MOCK_USER
+export async function leaveCommunityAction(communityId: string): Promise<ActionResult<true>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión para salir de una comunidad.' }
 
   const subscribed = await isUserSubscribed(user.id, communityId)
@@ -272,8 +233,8 @@ export async function leaveCommunityAction(communityId: string) {
 // --- STORAGE ---
 
 /** Sube o reemplaza el icono de una comunidad. */
-export async function uploadCommunityIconAction(communityId: string, base64: string) {
-  const user = MOCK_USER
+export async function uploadCommunityIconAction(communityId: string, base64: string): Promise<ActionResult<string>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión.' }
 
   const community = await getCommunityById(communityId)
@@ -283,19 +244,31 @@ export async function uploadCommunityIconAction(communityId: string, base64: str
     return { error: 'No tienes permisos para cambiar el icono.' }
   }
 
-  const buffer = Buffer.from(base64.split(',')[1], 'base64')
-  const result = await uploadImage('communityIcon', communityId, buffer)
+  const parts = base64.split(',')
+  if (parts.length < 2 || !parts[1]) return { error: 'Formato de imagen inválido.' }
+
+  const buffer = Buffer.from(parts[1], 'base64')
+
+  if (buffer.length > IMAGE_PRESETS.communityIcon.maxSize) {
+    const maxKB = IMAGE_PRESETS.communityIcon.maxSize / 1024
+    return { error: `La imagen supera el tamaño máximo de ${maxKB} KB.` }
+  }
+
+  const upload = community.icon_url ? replaceImage : uploadImage
+  const result = await upload('communityIcon', communityId, buffer)
   if ('error' in result) return { error: result.error }
 
-  const updated = await updateCommunityIcon(communityId, result.url)
+  const versionedUrl = `${result.url}?v=${Date.now()}`
+  const updated = await updateCommunityIcon(communityId, versionedUrl)
   if (!updated) return { error: 'No se pudo actualizar el icono.' }
 
-  return { data: result.url }
+  await revalidateCommunityPath(community)
+  return { data: versionedUrl }
 }
 
 /** Elimina el icono de una comunidad. */
-export async function deleteCommunityIconAction(communityId: string) {
-  const user = MOCK_USER
+export async function deleteCommunityIconAction(communityId: string): Promise<ActionResult<true>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión.' }
 
   const community = await getCommunityById(communityId)
@@ -308,12 +281,13 @@ export async function deleteCommunityIconAction(communityId: string) {
   await deleteImage('communityIcon', communityId)
   await updateCommunityIcon(communityId, null)
 
+  await revalidateCommunityPath(community)
   return { data: true }
 }
 
 /** Sube o reemplaza el banner de una comunidad. */
-export async function uploadCommunityBannerAction(communityId: string, base64: string) {
-  const user = MOCK_USER
+export async function uploadCommunityBannerAction(communityId: string, base64: string): Promise<ActionResult<string>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión.' }
 
   const community = await getCommunityById(communityId)
@@ -323,19 +297,31 @@ export async function uploadCommunityBannerAction(communityId: string, base64: s
     return { error: 'No tienes permisos para cambiar el banner.' }
   }
 
-  const buffer = Buffer.from(base64.split(',')[1], 'base64')
-  const result = await uploadImage('communityBanner', communityId, buffer)
+  const parts = base64.split(',')
+  if (parts.length < 2 || !parts[1]) return { error: 'Formato de imagen inválido.' }
+
+  const buffer = Buffer.from(parts[1], 'base64')
+
+  if (buffer.length > IMAGE_PRESETS.communityBanner.maxSize) {
+    const maxKB = IMAGE_PRESETS.communityBanner.maxSize / 1024
+    return { error: `La imagen supera el tamaño máximo de ${maxKB} KB.` }
+  }
+
+  const upload = community.banner_url ? replaceImage : uploadImage
+  const result = await upload('communityBanner', communityId, buffer)
   if ('error' in result) return { error: result.error }
 
-  const updated = await updateCommunityBanner(communityId, result.url)
+  const versionedUrl = `${result.url}?v=${Date.now()}`
+  const updated = await updateCommunityBanner(communityId, versionedUrl)
   if (!updated) return { error: 'No se pudo actualizar el banner.' }
 
-  return { data: result.url }
+  await revalidateCommunityPath(community)
+  return { data: versionedUrl }
 }
 
 /** Elimina el banner de una comunidad. */
-export async function deleteCommunityBannerAction(communityId: string) {
-  const user = MOCK_USER
+export async function deleteCommunityBannerAction(communityId: string): Promise<ActionResult<true>> {
+  const user = await getCurrentUser()
   if (!user) return { error: 'Debes iniciar sesión.' }
 
   const community = await getCommunityById(communityId)
@@ -348,5 +334,6 @@ export async function deleteCommunityBannerAction(communityId: string) {
   await deleteImage('communityBanner', communityId)
   await updateCommunityBanner(communityId, null)
 
+  await revalidateCommunityPath(community)
   return { data: true }
 }

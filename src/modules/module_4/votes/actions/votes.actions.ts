@@ -1,34 +1,32 @@
-'use server'; // 👈 Obligatorio al inicio del archivo
+'use server';
 
 import { createClient } from '@/lib/db/server';
 import { calculateWeight } from '@/modules/module_4/votes/services/weight.service';
 import { createNotification } from '@/modules/module_4/notifications/services/notification.service';
-import { revalidatePath } from 'next/cache'; // 👈 IMPORTANTE para actualizar la UI
+import { updateUserReputation } from '@/modules/module_4/reputation/services/reputation.service';
+import { getCurrentUserId } from '@module_1/auth/exports';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Registra un voto (upvote/downvote) en una respuesta usando Server Actions.
  */
 export async function castVote(replyId: string, value: 1 | -1) {
   try {
-    // Validar parámetros de entrada (Ya no usamos VotePayload)
     if (!replyId || (value !== 1 && value !== -1)) {
       return { success: false, error: 'Parámetros inválidos. Se requiere replyId y value (1 | -1).' };
     }
 
-    // Configuración del usuario mock asignado directamente
-    const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001'; 
-    const currentUserId = MOCK_USER_ID;
-
+    const currentUserId = await getCurrentUserId();
     if (!currentUserId) {
-      return { success: false, error: 'No se proporcionó el ID del usuario.' };
+      return { success: false, error: 'Debes iniciar sesión para votar.' };
     }
 
     const supabase = await createClient();
 
-    // 1. Anti-Self-Voting & Validación de Estado: Consultar la respuesta y el estado de su post padre
+    // 1. Anti-Self-Voting y validación de estado del post padre
     const { data: reply, error: replyError } = await supabase
       .from('replies')
-      .select('user_id, post_id, posts!inner(status)')
+      .select('user_id, post_id')
       .eq('id', replyId)
       .single();
 
@@ -40,8 +38,13 @@ export async function castVote(replyId: string, value: 1 | -1) {
       return { success: false, error: 'No puedes votar tu propio contenido.' };
     }
 
-    // @ts-ignore - Ignoramos tipado temporalmente por el inner join de Supabase
-    if (reply.posts?.status === 'closed') {
+    const { data: post } = await supabase
+      .from('posts')
+      .select('status')
+      .eq('id', reply.post_id)
+      .single();
+
+    if (post?.status === 'closed') {
       return { success: false, error: 'No se permiten votos en publicaciones cerradas.' };
     }
 
@@ -54,26 +57,28 @@ export async function castVote(replyId: string, value: 1 | -1) {
       .maybeSingle();
 
     const weight = await calculateWeight(currentUserId);
-    let actionMessage = '';
+    let shouldNotify = false;
+    let reputationDelta = 0;
 
-    // 3. Lógica de Mutación (Insertar, Actualizar o Eliminar)
+    // 3. Lógica de mutación (insertar, actualizar o eliminar) y cálculo de reputación
     if (existingVote) {
       if (existingVote.value === value) {
-        // Si presiona el mismo botón, el usuario está retirando su voto
+        // Omitir o remover voto existente
         const { error: deleteError } = await supabase.from('votes').delete().eq('id', existingVote.id);
         if (deleteError) throw deleteError;
-        actionMessage = 'Voto retirado exitosamente.';
+        reputationDelta = value === 1 ? -10 : 5;
       } else {
-        // Si cambia de upvote a downvote (o viceversa), actualizamos
+        // Cambiar voto (ej: de +1 a -1 o de -1 a +1)
         const { error: updateError } = await supabase
           .from('votes')
           .update({ value, weight })
           .eq('id', existingVote.id);
         if (updateError) throw updateError;
-        actionMessage = 'Voto actualizado exitosamente.';
+        shouldNotify = true;
+        reputationDelta = value === 1 ? 15 : -15;
       }
     } else {
-      // Si no existe, insertamos un voto nuevo
+      // Insertar nuevo voto
       const { error: insertError } = await supabase
         .from('votes')
         .insert({
@@ -83,10 +88,11 @@ export async function castVote(replyId: string, value: 1 | -1) {
           weight,
         });
       if (insertError) throw insertError;
-      actionMessage = 'Voto registrado exitosamente.';
+      shouldNotify = true;
+      reputationDelta = value === 1 ? 10 : -5;
     }
 
-    // 4. Actualizar el vote_count de la respuesta de forma segura
+    // 4. Actualizar el vote_count de la respuesta
     const { data: votesAgg, error: aggError } = await supabase
       .from('votes')
       .select('value, weight')
@@ -104,21 +110,19 @@ export async function castVote(replyId: string, value: 1 | -1) {
         .eq('id', replyId);
     }
 
-    // 5. Notificar al autor de la respuesta (Solo si el voto se agregó o cambió, no si se retiró)
-    if (actionMessage !== 'Voto retirado exitosamente.') {
-      try {
-        await createNotification(reply.user_id, 'vote', replyId);
-      } catch (notifError) {
-        console.error('Error al enviar la notificación:', notifError);
-      }
+    // 5. Actualizar la reputación del autor de la respuesta
+    await updateUserReputation(reply.user_id, reputationDelta);
+
+    // 6. Notificar al autor solo si el voto se agregó o cambió
+    if (shouldNotify) {
+      await createNotification(reply.user_id, 'vote', replyId);
     }
 
-    // 6. Revalidar la caché bajo demanda para que la UI se actualice automáticamente
+    // 7. Revalidar la caché
     revalidatePath('/', 'layout');
 
-    return { success: true, message: actionMessage };
-  } catch (error) {
-    console.error('Error inesperado en castVote:', error);
+    return { success: true };
+  } catch {
     return { success: false, error: 'Error interno del servidor.' };
   }
 }

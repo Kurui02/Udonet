@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { castVote } from '../actions/votes.actions'; // 👈 Tu Server Action seguro
+import { castVote } from '../actions/votes.actions'; // Tu Server Action seguro
 
 // 1. Iconos SVG Nativos del Design System (Enviados por el Grupo 3)
 function UpvoteIcon({ active = false, className = "w-8 h-8" }: { active?: boolean; className?: string }) {
@@ -33,6 +33,7 @@ interface VoteManagerProps {
   initialVoteCount: number;
   currentSessionUserId: string;
   replyAuthorId: string;
+  initialUserVote?: 1 | -1 | null;
 }
 
 export default function VoteManager({
@@ -40,13 +41,23 @@ export default function VoteManager({
   initialVoteCount,
   currentSessionUserId,
   replyAuthorId,
+  initialUserVote = null,
 }: VoteManagerProps) {
   const [voteCount, setVoteCount] = useState<number>(initialVoteCount);
-  const [currentVote, setCurrentVote] = useState<1 | -1 | null>(null);
+  const [currentVote, setCurrentVote] = useState<1 | -1 | null>(initialUserVote);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
-  const isAuthor = currentSessionUserId === replyAuthorId;
+  React.useEffect(() => {
+    setVoteCount(initialVoteCount);
+    setCurrentVote(initialUserVote);
+  }, [initialVoteCount, initialUserVote]);
+
+  const isAuthor = Boolean(
+    currentSessionUserId &&
+    replyAuthorId &&
+    currentSessionUserId.trim().toLowerCase() === replyAuthorId.trim().toLowerCase()
+  );
 
   const showToast = useCallback((message: string, type: 'error' | 'success') => {
     setToast({ message, type });
@@ -54,7 +65,12 @@ export default function VoteManager({
   }, []);
 
   const handleVote = async (value: 1 | -1) => {
-    if (isAuthor || isLoading) return;
+    if (isAuthor || isLoading) {
+      if (isAuthor) {
+        showToast('No puedes votar tu propio contenido.', 'error');
+      }
+      return;
+    }
 
     const previousVoteCount = voteCount;
     const previousVote = currentVote;
@@ -76,7 +92,7 @@ export default function VoteManager({
     setIsLoading(true);
 
     try {
-      // 👈 MANTENEMOS TU SERVER ACTION (Evita usar fetch de rutas API eliminadas)
+      // SERVER ACTION 
       const response = await castVote(replyId, value);
 
       if (!response.success) {
@@ -85,8 +101,8 @@ export default function VoteManager({
         showToast(response.error || 'Error al registrar el voto.', 'error');
         return;
       }
-
-      showToast(response.message || 'Voto registrado correctamente.', 'success');
+      
+      showToast('Voto registrado correctamente.', 'success');
     } catch {
       setVoteCount(previousVoteCount);
       setCurrentVote(previousVote);
@@ -98,13 +114,16 @@ export default function VoteManager({
 
   return (
     <div className="inline-flex items-center gap-3">
-      {/* Botón Upvote con SVG del Grupo 3 */}
+      {/* Botón Upvote con SVG */}
       <button
         type="button"
         onClick={() => handleVote(1)}
         disabled={isAuthor || isLoading}
-        className={`p-0 border-0 bg-transparent transition-transform ${isAuthor ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-105'
-          }`}
+        className={`p-0 border-0 bg-transparent transition-transform ${
+          isAuthor || isLoading
+            ? 'cursor-not-allowed opacity-50'
+            : 'cursor-pointer hover:scale-105'
+        }`}
         title={isAuthor ? 'No puedes votar tu propio contenido' : 'Votar positivo'}
         aria-label="Upvote"
       >
@@ -116,13 +135,16 @@ export default function VoteManager({
         {voteCount}
       </span>
 
-      {/* Botón Downvote con SVG del Grupo 3 */}
+      {/* Botón Downvote con SVG */}
       <button
         type="button"
         onClick={() => handleVote(-1)}
         disabled={isAuthor || isLoading}
-        className={`p-0 border-0 bg-transparent transition-transform ${isAuthor ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-105'
-          }`}
+        className={`p-0 border-0 bg-transparent transition-transform ${
+          isAuthor || isLoading
+            ? 'cursor-not-allowed opacity-50'
+            : 'cursor-pointer hover:scale-105'
+        }`}
         title={isAuthor ? 'No puedes votar tu propio contenido' : 'Votar negativo'}
         aria-label="Downvote"
       >
@@ -132,8 +154,9 @@ export default function VoteManager({
       {/* Toast de feedback */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-lg transition-all ${toast.type === 'error' ? 'bg-[#D13B00]' : 'bg-green-500'
-            }`}
+          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-lg transition-all ${
+            toast.type === 'error' ? 'bg-[#D13B00]' : 'bg-green-500'
+          }`}
         >
           {toast.message}
         </div>

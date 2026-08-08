@@ -1,0 +1,2 @@
+export { calculateReportScore, getPrioritizedReports } from "./services/report-priority.service";
+export { getActiveReportsCount, updateContentVisibility, updateReportsStatus } from "./services/report-actions.service";

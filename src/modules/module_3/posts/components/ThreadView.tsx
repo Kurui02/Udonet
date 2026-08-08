@@ -14,10 +14,10 @@ import { PostCard } from './PostList';
 
 interface ThreadViewProp {
   threadId: string;
+  initialThread: UnifiedPost | null;
   onBack: () => void;
+  currentUserId?: string | null;
 }
-
-const MockUsers = ['Alejandro', 'Joyce_Valerio', 'Dano', 'Keiber'];
 
 interface MentionTextareaProps {
   value: string;
@@ -25,9 +25,10 @@ interface MentionTextareaProps {
   placeholder?: string;
   rows?: number;
   disabled?: boolean;
+  suggestedUsers?: string[];
 }
 
-function MentionTextarea({ value, onChange, placeholder, rows = 3, disabled }: MentionTextareaProps) {
+function MentionTextarea({ value, onChange, placeholder, rows = 3, disabled, suggestedUsers = [] }: MentionTextareaProps) {
   const [showMentions, setShowMentions] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
@@ -62,7 +63,7 @@ function MentionTextarea({ value, onChange, placeholder, rows = 3, disabled }: M
     setShowMentions(false);
   };
 
-  const filteredUsers = MockUsers.filter(u => u.toLowerCase().includes(filterText));
+  const filteredUsers = suggestedUsers.filter(u => u.toLowerCase().includes(filterText));
 
   return (
     <div className="relative w-full">
@@ -117,9 +118,11 @@ interface ReplyItemProps {
   onAddReply: () => void;
   onShowToast: (msg: string, type: 'success' | 'error') => void;
   parentAuthorName?: string;
+  currentUserId?: string | null;
+  suggestedUsers: string[];
 }
 
-function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }: ReplyItemProps) {
+function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName, currentUserId, suggestedUsers }: ReplyItemProps) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -139,6 +142,9 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
       }
     });
   };
+
+  const userVoteObj = currentUserId && reply.votes ? reply.votes.find(v => v.user_id === currentUserId) : null;
+  const initialUserVote = userVoteObj ? (userVoteObj.value as 1 | -1) : null;
 
   return (
     <div className="bg-pure-white rounded-[24px] p-5 font-candal font-normal min-w-0 transition-all border-0">
@@ -168,8 +174,9 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
         <VoteManager 
           replyId={reply.id}
           initialVoteCount={reply.vote_count || 0}
-          currentSessionUserId="00000000-0000-0000-0000-000000000001"
+          currentSessionUserId={currentUserId || ''}
           replyAuthorId={reply.user_id || reply.author?.id || ''}
+          initialUserVote={initialUserVote}
         />
 
         <button 
@@ -190,6 +197,7 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
             placeholder={`Respondiendo a ${reply.author?.username || 'Anónimo'}...`}
             rows={2}
             disabled={isPending}
+            suggestedUsers={suggestedUsers}
           />
           <div className="flex justify-end gap-2">
             <button 
@@ -221,6 +229,8 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
               onAddReply={onAddReply}
               onShowToast={onShowToast}
               parentAuthorName={reply.author?.username || 'Anónimo'}
+              currentUserId={currentUserId}
+              suggestedUsers={suggestedUsers}
             />
           ))}
         </div>
@@ -229,10 +239,28 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName }:
   );
 }
 
-export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
+/** Recolecta, sin duplicados, los usernames de todos los participantes del hilo (autor + respuestas anidadas). */
+function collectParticipants(thread: UnifiedPost | null): string[] {
+  if (!thread) return [];
+  const usernames = new Set<string>();
+
+  if (thread.author?.username) usernames.add(thread.author.username);
+
+  const visit = (replies: DatabaseReply[]) => {
+    replies.forEach((r) => {
+      if (r.author?.username) usernames.add(r.author.username);
+      if (r.nestedReplies?.length) visit(r.nestedReplies);
+    });
+  };
+  visit(thread.replies || []);
+
+  return Array.from(usernames);
+}
+
+export default function ThreadView({ threadId, initialThread, onBack, currentUserId }: ThreadViewProp) {
   const router = useRouter();
-  const [thread, setThread] = useState<UnifiedPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [thread, setThread] = useState<UnifiedPost | null>(initialThread);
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [showMainReplyBox, setShowMainReplyBox] = useState(false);
@@ -244,15 +272,30 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
     router.push(`/?q=${encodeURIComponent(cleanTag)}`);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchFullThread = async () => {
+      if (!initialThread?.replies || initialThread.replies.length === 0) {
+        setLoading(true);
+      }
+      const data = await getThread(threadId);
+      if (isMounted) {
+        if (data) setThread(data);
+        setLoading(false);
+      }
+    };
+    fetchFullThread();
+    return () => {
+      isMounted = false;
+    };
+  }, [threadId, initialThread]);
+
   const loadData = async () => {
+    setLoading(true);
     const data = await getThread(threadId);
     setThread(data);
     setLoading(false);
   };
-
-  useEffect(() => {
-    loadData();
-  }, [threadId]);
 
   const handleMainReplySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,6 +342,7 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
   const authorName = thread.author?.username || 'Anónimo';
   const authorRole = thread.author?.role || 'Profesor';
   const communityBreadcrumb = `F / ${thread.community_name || 'DCYS'}`;
+  const suggestedUsers = collectParticipants(thread);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 relative">
@@ -328,6 +372,7 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
         onMainReplyClick={() => setShowMainReplyBox(!showMainReplyBox)}
         showMainReplyBox={showMainReplyBox}
         onTagClick={() => onBack()}
+        currentUserId={currentUserId}
       />
       
       {/* Caja para Comentar al Hilo Principal */}
@@ -341,6 +386,7 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
               placeholder="¿Qué opinas al respecto? Usa @ para mencionar..."
               rows={3}
               disabled={isPending}
+              suggestedUsers={suggestedUsers}
             />
             <div className="flex justify-end gap-3 mt-3">
               <button 
@@ -377,6 +423,8 @@ export default function ThreadView({ threadId, onBack }: ThreadViewProp) {
                 postId={thread.id} 
                 onAddReply={loadData}
                 onShowToast={(msg, type) => setToast({ message: msg, type })}
+                currentUserId={currentUserId}
+                suggestedUsers={suggestedUsers}
               />
             ))}
           </div>

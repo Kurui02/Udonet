@@ -17,7 +17,6 @@ export async function calculateWeight(userId: string): Promise<number> {
       .single();
 
     if (error) {
-      console.error('Error al consultar usuario para calcular peso:', error.message);
       return 1.0; // Peso por defecto en caso de error
     }
 
@@ -25,14 +24,13 @@ export async function calculateWeight(userId: string): Promise<number> {
       return 1.0;
     }
 
-    // Moderadores o usuarios con alta reputación obtienen peso doble
-    if (user.role === 'moderator' || user.reputation > 1000) {
+    // Moderadores, administradores o usuarios con alta reputación obtienen peso doble (2.0)
+    if (user.role === 'moderator' || user.role === 'admin' || (user.reputation && user.reputation > 1000)) {
       return 2.0;
     }
 
     return 1.0;
-  } catch (error) {
-    console.error('Error inesperado en calculateWeight:', error);
+  } catch {
     return 1.0;
   }
 }
