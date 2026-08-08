@@ -3,9 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { createPost, getPosts, getPostsByUser, UnifiedPost } from "@module_3/posts/services/post.service";
 import { getLinkMetadata } from "./links";
+<<<<<<< HEAD
 import {
   getUserMainCommunities,
   isUserSubscribed
+=======
+import { Community } from "@/lib/types";
+import { 
+  getUserMainCommunities, 
+  getCommunityBySlug,
+  isUserSubscribed 
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
 } from "@module_2/communities/exports";
 import { getCurrentUser, getCurrentUserId } from "@module_1/auth/exports";
 
@@ -31,6 +39,7 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
     const currentUserId = await getCurrentUserId()
     if (!currentUserId) return []
 
+<<<<<<< HEAD
     const mainCommunities = await getUserMainCommunities(currentUserId)
 
     const allCommunities: CommunityOption[] = []
@@ -41,6 +50,19 @@ export async function getUserJoinedCommunitiesAction(): Promise<CommunityOption[
       for (const sub of subs) {
         allCommunities.push({ id: sub.id, name: `${sub.name}(${main.name})` })
       }
+=======
+    return (mainCommunities || []).map((community: Community) => ({
+      id: community.id,
+      name: community.name,
+    }));
+  } catch (error) {
+    try {
+      const generalCommunity = await getCommunityBySlug("temas-generales");
+      if (generalCommunity) {
+        return [{ id: generalCommunity.id, name: generalCommunity.name }];
+      }
+    } catch (fallbackError) {
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
     }
 
     return allCommunities

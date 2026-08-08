@@ -396,7 +396,11 @@ export interface PostListProps {
   currentUserId?: string | null;
 }
 
+<<<<<<< HEAD
 export default function PostList({ posts, onSelectPost, currentUserId }: PostListProps) {
+=======
+export default function PostList({ posts, onSelectPost }: PostListProps) {
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
 

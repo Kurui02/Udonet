@@ -9,6 +9,7 @@ import PostList from '@module_3/posts/components/PostList';
 import { UnifiedPost } from '@module_3/posts/services/supabase-service';
 import { CommunityOption } from '@module_3/posts/actions/post';
 import { getThread } from '@module_3/posts/actions/thread';
+<<<<<<< HEAD
 
 interface Module3ContentProps {
   initialPosts: UnifiedPost[];
@@ -20,6 +21,15 @@ function Module3Content({ initialPosts, communities }: Module3ContentProps) {
   const searchParams = useSearchParams();
   const threadParam = searchParams.get('thread') || searchParams.get('post');
 
+=======
+
+interface Module3ContentProps {
+  initialPosts: UnifiedPost[];
+  communities: CommunityOption[];
+}
+
+function Module3Content({ initialPosts, communities }: Module3ContentProps) {
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [currentThread, setCurrentThread] = useState<UnifiedPost | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -32,6 +42,7 @@ function Module3Content({ initialPosts, communities }: Module3ContentProps) {
     setLoadingThread(false);
   };
 
+<<<<<<< HEAD
   useEffect(() => {
     if (threadParam) {
       openThread(threadParam);
@@ -44,6 +55,11 @@ function Module3Content({ initialPosts, communities }: Module3ContentProps) {
     if (threadParam) {
       router.push('/');
     }
+=======
+  const closeThread = () => {
+    setSelectedThread(null);
+    setCurrentThread(null);
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   };
 
   return (

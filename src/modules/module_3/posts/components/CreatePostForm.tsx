@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { createPostAction, getUserJoinedCommunitiesAction, getCurrentUserDisplayAction, CommunityOption } from "@module_3/posts/actions/post";
+=======
+import { createPostAction, CommunityOption } from "@module_3/posts/actions/post";
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
 import { getLinkMetadata } from "@module_3/posts/actions/links";
 import { isValidUrl } from "../actions/validateUrl";
 import PopoverSelect from '../../components/PopoverSelect';
@@ -24,6 +28,7 @@ interface CreatePostModalProps {
   userName?: string;
 }
 
+<<<<<<< HEAD
 export default function CreatePostModal({
   isOpen,
   onClose,
@@ -50,12 +55,27 @@ export default function CreatePostModal({
       setPostText(initialText);
     }
   }, [isOpen, initialText]);
+=======
+export default function CreatePostModal({ 
+  isOpen, 
+  onClose, 
+  initialCommunities = [],
+  initialCommunity = "General", 
+  userAvatar,
+  userName = "Estudiante UDO"
+}: CreatePostModalProps) {
+  const [title, setTitle] = useState("");
+  const [community, setCommunity] = useState(initialCommunity);
+  const [communitiesList] = useState<CommunityOption[]>(initialCommunities);
+  const [postText, setPostText] = useState("");
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const [urlInput, setUrlInput] = useState("");
   const [tags, setTags] = useState("");
   const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
+<<<<<<< HEAD
   // Al abrir el modal, traer la lista real de comunidades del usuario y su nombre/avatar reales
   useEffect(() => {
     if (!isOpen) return;
@@ -74,6 +94,8 @@ export default function CreatePostModal({
     }
   }, [isOpen, userNameProp]);
 
+=======
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   // Debounce para previsualizar metadata de URL
   useEffect(() => {
     const trimmedUrl = urlInput.trim();

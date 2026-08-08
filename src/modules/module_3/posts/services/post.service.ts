@@ -14,7 +14,10 @@ export type DatabasePostLink = PostLink;
 export type DatabaseReply = Reply & {
   author?: DatabaseUser;
   nestedReplies?: DatabaseReply[];
+<<<<<<< HEAD
   votes?: { user_id: string; value: number; weight?: number }[];
+=======
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
 };
 
 export type UnifiedPost = Omit<Post, 'status'> & {
@@ -65,7 +68,11 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
       communities(name),
       links:post_links(*),
       post_tags(tag:tags(name)),
+<<<<<<< HEAD
       replies(*, author:users(id, username, avatar_url, reputation, role), votes(user_id, value, weight))
+=======
+      replies(*, author:users(id, username, avatar_url, reputation, role))
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
     `)
     .eq('id', id)
     .single();
@@ -76,6 +83,7 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
 
   const formattedTags = data.post_tags?.map((pt: { tag: { name: string } }) => pt.tag.name) || [];
 
+<<<<<<< HEAD
   const rawReplies = data.replies || [];
   const processedReplies: DatabaseReply[] = rawReplies.map((r: any) => {
     const votesList = r.votes || [];
@@ -90,15 +98,25 @@ export async function getThread(id: string): Promise<UnifiedPost | null> {
     };
   });
 
+=======
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const post: UnifiedPost = {
     ...data,
     community_name: data.communities?.name || 'General',
     tags: formattedTags,
+<<<<<<< HEAD
     replies_count: rawReplies.length,
     votes_count: 0
   };
 
   post.replies = buildReplyTree(processedReplies);
+=======
+    replies_count: data.replies?.length || 0,
+    votes_count: 0
+  };
+
+  post.replies = buildReplyTree(data.replies || []);
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
 
   return post;
 }
@@ -149,10 +167,14 @@ export async function createPost(formData: FormData | CreatePostPayload): Promis
       content,
       author_id: userId,
       community_id: communityId || null,
+<<<<<<< HEAD
       status: 'open',
       // (DiGiorgio-L): When creating a post, the SQL database by default sets the is_private property to true, these lines are meant to change that to allow for passing the RLS check.
       is_private: false,
       is_hidden: false
+=======
+      status: 'open'
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
     })
     .select()
     .single();
@@ -207,6 +229,7 @@ export async function search(term: string = '', community?: string, tags?: strin
       communities(name),
       links:post_links(*),
       post_tags(tag:tags(name)),
+<<<<<<< HEAD
       replies(id, votes(value, weight))
     `)
     .eq('is_hidden', false);
@@ -236,6 +259,12 @@ export async function search(term: string = '', community?: string, tags?: strin
     }
   }
 
+=======
+      replies(id)
+    `)
+    .eq('is_hidden', false);
+
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   if (cleanTerm) {
     const { data: matchedTags } = await supabase
       .from('tags')
@@ -266,6 +295,7 @@ export async function search(term: string = '', community?: string, tags?: strin
 
   if (error || !data) return [];
 
+<<<<<<< HEAD
   let formattedData: UnifiedPost[] = data.map((post: RawPostRow) => {
     let totalVotes = 0;
     if (post.replies && Array.isArray(post.replies)) {
@@ -286,6 +316,18 @@ export async function search(term: string = '', community?: string, tags?: strin
       votes_count: Math.round(totalVotes)
     };
   });
+=======
+  let formattedData: UnifiedPost[] = data.map((post: RawPostRow) => ({
+    ...post,
+    author: post.author || { id: post.author_id, username: 'Anónimo' },
+    community_name: post.communities?.name || 'General',
+    tags: post.post_tags?.map((pt: { tag: { name: string } }) => pt.tag.name) || [],
+    replies: [],
+    links: post.links || [],
+    replies_count: post.replies ? post.replies.length : 0,
+    votes_count: 0
+  }));
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
 
   if (filter === 'most_replied' || filter === 'respondidos') {
     formattedData.sort((a, b) => b.replies_count - a.replies_count);

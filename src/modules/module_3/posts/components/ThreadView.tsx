@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getThread } from '@module_3/posts/actions/thread';
 import { addReplyAction } from '@module_3/posts/actions/reply';
@@ -239,6 +239,7 @@ function ReplyItem({ reply, postId, onAddReply, onShowToast, parentAuthorName, c
   );
 }
 
+<<<<<<< HEAD
 /** Recolecta, sin duplicados, los usernames de todos los participantes del hilo (autor + respuestas anidadas). */
 function collectParticipants(thread: UnifiedPost | null): string[] {
   if (!thread) return [];
@@ -258,6 +259,9 @@ function collectParticipants(thread: UnifiedPost | null): string[] {
 }
 
 export default function ThreadView({ threadId, initialThread, onBack, currentUserId }: ThreadViewProp) {
+=======
+export default function ThreadView({ threadId, initialThread, onBack }: ThreadViewProp) {
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const router = useRouter();
   const [thread, setThread] = useState<UnifiedPost | null>(initialThread);
   const [loading, setLoading] = useState(false);
@@ -272,6 +276,7 @@ export default function ThreadView({ threadId, initialThread, onBack, currentUse
     router.push(`/?q=${encodeURIComponent(cleanTag)}`);
   };
 
+<<<<<<< HEAD
   useEffect(() => {
     let isMounted = true;
     const fetchFullThread = async () => {
@@ -290,6 +295,9 @@ export default function ThreadView({ threadId, initialThread, onBack, currentUse
     };
   }, [threadId, initialThread]);
 
+=======
+  // Only used to refresh replies after posting — not for initial load
+>>>>>>> 7d98592f2c66806499106dae9832c3d8060338c2
   const loadData = async () => {
     setLoading(true);
     const data = await getThread(threadId);
